@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Club Membership | SEORC</title>
+    <meta name="description" content="Join Shoalhaven Extreme Obstacle Racing Club.">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="SEORC home">
+        <img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true">
+        <span>
+          <strong>SEORC</strong>
+          <small>Shoalhaven Extreme Obstacle Racing Club</small>
+        </span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a class="active" href="registration.html">Registration</a>
+        <a href="media.html">Media</a>
+        <a href="calendar.html">Calendar</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-title">
+        <p class="eyebrow">Form 1</p>
+        <h1>Joining Shoalhaven Club Form</h1>
+        <p>Complete this form when becoming a SEORC club member.</p>
+      </section>
+
+      <section class="registration-layout">
+        <form class="registration-form form-panel" action="#" method="post">
+          <fieldset>
+            <legend>Rider Details</legend>
+            <div class="form-grid">
+              <label>
+                First name
+                <input name="club-first-name" type="text" autocomplete="given-name" required>
+              </label>
+              <label>
+                Last name
+                <input name="club-last-name" type="text" autocomplete="family-name" required>
+              </label>
+              <label>
+                Birthday
+                <input name="club-birthday" type="date" required>
+              </label>
+              <label>
+                Address
+                <input name="club-address" type="text" autocomplete="street-address" required>
+              </label>
+              <label>
+                Phone number
+                <input name="club-phone" type="tel" autocomplete="tel" required>
+              </label>
+              <label>
+                Email address
+                <input name="club-email" type="email" autocomplete="email" required>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Emergency Contact Details</legend>
+            <div class="form-grid">
+              <label>
+                First name
+                <input name="emergency-first-name" type="text" autocomplete="off" required>
+              </label>
+              <label>
+                Last name
+                <input name="emergency-last-name" type="text" autocomplete="off" required>
+              </label>
+              <label>
+                Phone number
+                <input name="emergency-phone" type="tel" required>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Riding Information</legend>
+            <div class="form-grid">
+              <label>
+                Riding level
+                <select name="riding-level" required>
+                  <option value="">Select riding level</option>
+                  <option>Professional</option>
+                  <option>Experienced</option>
+                  <option>Intermediate</option>
+                  <option>Novice</option>
+                </select>
+              </label>
+              <label>
+                Horse level
+                <select name="horse-level" required>
+                  <option value="">Select horse level</option>
+                  <option>Experienced</option>
+                  <option>Novice</option>
+                  <option>Green</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Membership Acknowledgements</legend>
+            <label class="check-row">
+              <input name="aeora-membership-acknowledgement" type="checkbox" required>
+              <span>I acknowledge that I have signed up with <a href="https://www.australianextremeobstacleracing.com.au/copy-of-rule-book" target="_blank" rel="noopener">Australian Extreme Obstacle Racing Australia</a>.</span>
+            </label>
+            <label class="check-row">
+              <input name="email-notifications" type="checkbox">
+              <span>I would like to receive email notifications for new events and club days.</span>
+            </label>
+          </fieldset>
+
+          <button class="button primary form-submit" type="submit">Submit Club Membership</button>
+        </form>
+
+        <aside class="registration-aside">
+          <h2>Other Forms</h2>
+          <ul class="link-list">
+            <li><a href="club-day-registration.html">Monthly club meetup</a></li>
+            <li><a href="show-registration.html">Show registration</a></li>
+            <li><a href="registration.html">All registration options</a></li>
+          </ul>
+        </aside>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Questions before registering?</p>
+      <p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="admin.html">Admin</a></p>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

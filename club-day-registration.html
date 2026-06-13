@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Club Day Registration | SEORC</title>
+    <meta name="description" content="Register for a SEORC monthly club meetup.">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="SEORC home">
+        <img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true">
+        <span>
+          <strong>SEORC</strong>
+          <small>Shoalhaven Extreme Obstacle Racing Club</small>
+        </span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a class="active" href="registration.html">Registration</a>
+        <a href="media.html">Media</a>
+        <a href="calendar.html">Calendar</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-title">
+        <p class="eyebrow">Form 2</p>
+        <h1>Monthly Club Meetup Registration</h1>
+        <p>Complete this form when attending a monthly SEORC club day.</p>
+      </section>
+
+      <section class="registration-layout">
+        <form class="registration-form form-panel" action="#" method="post">
+          <fieldset>
+            <legend>Club Date</legend>
+            <label>
+              Club date
+              <select name="club-date" data-event-select="club" required>
+                <option value="">Select club date</option>
+              </select>
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Participant Information</legend>
+            <div class="form-grid">
+              <label>
+                First name
+                <input name="club-day-first-name" type="text" autocomplete="given-name" required>
+              </label>
+              <label>
+                Last name
+                <input name="club-day-last-name" type="text" autocomplete="family-name" required>
+              </label>
+              <label>
+                Horse name
+                <input name="club-day-horse-name" type="text" required>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Payment and Membership</legend>
+            <label class="check-row">
+              <input name="club-day-paid" type="checkbox" required>
+              <span>I have paid for my club day using the <a href="bank-details.html">bank details page</a> and sent through my payment details.</span>
+            </label>
+            <label class="check-row">
+              <input name="club-day-aeora-member" type="checkbox" required>
+              <span>I am an annual member of <a href="https://www.australianextremeobstacleracing.com.au/copy-of-rule-book" target="_blank" rel="noopener">Australian Extreme Obstacle Racing Australia</a>.</span>
+            </label>
+          </fieldset>
+
+          <button class="button primary form-submit" type="submit">Submit Club Day Registration</button>
+        </form>
+
+        <aside class="registration-aside">
+          <h2>Useful Links</h2>
+          <ul class="link-list">
+            <li><a href="bank-details.html">Bank details</a></li>
+            <li><a href="club-membership.html">Join Shoalhaven Club</a></li>
+            <li><a href="show-registration.html">Show registration</a></li>
+            <li><a href="calendar.html">Club calendar</a></li>
+          </ul>
+        </aside>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Questions before registering?</p>
+      <p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="admin.html">Admin</a></p>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

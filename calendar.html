@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Calendar | SEORC</title>
+    <meta name="description" content="Upcoming SEORC obstacle racing events, training days, and clinics.">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="SEORC home">
+        <img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true">
+        <span>
+          <strong>SEORC</strong>
+          <small>Shoalhaven Extreme Obstacle Racing Club</small>
+        </span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="registration.html">Registration</a>
+        <a href="media.html">Media</a>
+        <a class="active" href="calendar.html">Calendar</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-title">
+        <p class="eyebrow">Upcoming events</p>
+        <h1>Plan your training days, clinics, and race rounds.</h1>
+        <p>Dates are ready for club planning. Confirm final venue notes with the event team before travelling.</p>
+      </section>
+
+      <section class="calendar-tools" aria-label="Event filters">
+        <button class="filter-button active" type="button" data-filter="all">All</button>
+        <button class="filter-button" type="button" data-filter="club">Club Days</button>
+        <button class="filter-button" type="button" data-filter="show">Shows</button>
+        <button class="filter-button" type="button" data-filter="clinic">Clinics</button>
+      </section>
+
+      <section class="event-list" data-event-list aria-label="SEORC event list">
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Event dates may shift for weather, venue conditions, or horse welfare.</p>
+      <p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="admin.html">Admin</a></p>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

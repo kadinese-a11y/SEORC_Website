@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin | SEORC</title>
+    <meta name="description" content="SEORC admin event manager.">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="SEORC home">
+        <img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true">
+        <span>
+          <strong>SEORC</strong>
+          <small>Shoalhaven Extreme Obstacle Racing Club</small>
+        </span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="registration.html">Registration</a>
+        <a href="media.html">Media</a>
+        <a href="calendar.html">Calendar</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-title">
+        <p class="eyebrow">Admin</p>
+        <h1>Manage club dates, show dates, and clinics.</h1>
+        <p>This static-site admin stores changes in this browser. Use a backend before relying on this as a secure public login.</p>
+      </section>
+
+      <section class="admin-layout">
+        <form class="form-panel admin-login" data-admin-login>
+          <div class="form-heading">
+            <p class="eyebrow">Login</p>
+            <h2>Admin access</h2>
+          </div>
+          <fieldset>
+            <legend>Details</legend>
+            <div class="form-grid">
+              <label>
+                Username
+                <input name="username" type="text" autocomplete="username" required>
+              </label>
+              <label>
+                Password
+                <input name="password" type="password" autocomplete="current-password" required>
+              </label>
+            </div>
+          </fieldset>
+          <button class="button primary form-submit" type="submit">Log In</button>
+          <p class="admin-hint">Prototype login: admin / seorc2026</p>
+        </form>
+
+        <section class="admin-panel" data-admin-panel hidden>
+          <form class="form-panel" data-event-admin-form>
+            <div class="form-heading">
+              <p class="eyebrow">New event</p>
+              <h2>Add an event</h2>
+            </div>
+            <fieldset>
+              <legend>Event Details</legend>
+              <div class="form-grid">
+                <label>
+                  Event type
+                  <select name="type" required>
+                    <option value="">Select type</option>
+                    <option value="club">Club Day</option>
+                    <option value="show">Show</option>
+                    <option value="clinic">Clinic</option>
+                  </select>
+                </label>
+                <label>
+                  Date
+                  <input name="date" type="date" required>
+                </label>
+                <label>
+                  Title
+                  <input name="title" type="text" required>
+                </label>
+                <label>
+                  Location
+                  <input name="location" type="text" required>
+                </label>
+              </div>
+              <label>
+                Description
+                <textarea name="description" rows="4" required></textarea>
+              </label>
+            </fieldset>
+            <div class="admin-actions">
+              <button class="button primary form-submit" type="submit">Save Event</button>
+              <button class="button secondary form-submit" type="button" data-admin-logout>Log Out</button>
+            </div>
+          </form>
+
+          <section class="event-admin-list" aria-label="Saved admin events">
+            <div class="form-heading">
+              <p class="eyebrow">Saved events</p>
+              <h2>Browser event list</h2>
+            </div>
+            <div data-admin-event-list></div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Admin changes are stored locally in this browser for the static prototype.</p>
+      <p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="admin.html">Admin</a></p>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

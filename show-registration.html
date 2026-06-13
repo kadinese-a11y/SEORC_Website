@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Show Registration | SEORC</title>
+    <meta name="description" content="SEORC show registration details.">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="SEORC home">
+        <img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true">
+        <span>
+          <strong>SEORC</strong>
+          <small>Shoalhaven Extreme Obstacle Racing Club</small>
+        </span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a class="active" href="registration.html">Registration</a>
+        <a href="media.html">Media</a>
+        <a href="calendar.html">Calendar</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-title">
+        <p class="eyebrow">Form 3</p>
+        <h1>Show Registration Form</h1>
+        <p>This page is reserved for future show registration details.</p>
+      </section>
+
+      <section class="registration-layout">
+        <form class="registration-form form-panel" action="#" method="post" aria-labelledby="show-registration-title">
+          <div class="form-heading">
+            <p class="eyebrow">Show entry</p>
+            <h2 id="show-registration-title">Choose a show date.</h2>
+          </div>
+          <fieldset>
+            <legend>Show Date</legend>
+            <label>
+              Show
+              <select name="show-date" data-event-select="show" required>
+                <option value="">Select show date</option>
+              </select>
+            </label>
+          </fieldset>
+          <fieldset>
+            <legend>Entry Details</legend>
+            <div class="form-grid">
+              <label>
+                Rider name
+                <input name="show-rider-name" type="text" autocomplete="name" required>
+              </label>
+              <label>
+                Horse name
+                <input name="show-horse-name" type="text" required>
+              </label>
+            </div>
+          </fieldset>
+          <button class="button primary form-submit" type="submit">Submit Show Registration</button>
+        </form>
+
+        <aside class="registration-aside">
+          <h2>Other Forms</h2>
+          <ul class="link-list">
+            <li><a href="club-membership.html">Join Shoalhaven Club</a></li>
+            <li><a href="club-day-registration.html">Monthly club meetup</a></li>
+            <li><a href="calendar.html">Club calendar</a></li>
+          </ul>
+        </aside>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Questions before registering?</p>
+      <p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="admin.html">Admin</a></p>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
