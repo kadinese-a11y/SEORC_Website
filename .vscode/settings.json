@@ -1,0 +1,9 @@
+{
+  "liveServer.settings.ignoreFiles": [
+    ".vscode/**",
+    "**/.git/**",
+    "**/.DS_Store",
+    ".env",
+    "supabase-schema.sql"
+  ]
+}

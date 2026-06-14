@@ -50,6 +50,12 @@ const defaultEvents = [
   },
 ];
 
+const registrationFormTypes = {
+  "club-membership.html": "club_membership",
+  "club-day-registration.html": "club_day_registration",
+  "show-registration.html": "show_registration",
+};
+
 if (navToggle && siteNav) {
   navToggle.addEventListener("click", () => {
     const isOpen = siteNav.classList.toggle("open");
@@ -188,14 +194,6 @@ const mediaPhotos = [
   },
 ];
 
-const randomHero = document.querySelector("[data-random-hero]");
-
-if (randomHero && mediaPhotos.length) {
-  const photo = mediaPhotos[Math.floor(Math.random() * mediaPhotos.length)];
-  randomHero.setAttribute("src", photo.src);
-  randomHero.setAttribute("alt", photo.alt);
-}
-
 function renderAdminEventList() {
   const adminEventList = document.querySelector("[data-admin-event-list]");
 
@@ -309,8 +307,72 @@ document.addEventListener("click", (event) => {
 
 const staticForms = document.querySelectorAll("form:not([data-admin-login]):not([data-event-admin-form])");
 
+function getFormType() {
+  const pageName = window.location.pathname.split("/").pop() || "index.html";
+  return registrationFormTypes[pageName] || "website_form";
+}
+
+function getFormPayload(form) {
+  return [...form.elements].reduce((payload, field) => {
+    if (!field.name || field.disabled || ["submit", "button", "fieldset"].includes(field.type)) {
+      return payload;
+    }
+
+    if (field.type === "checkbox") {
+      payload[field.name] = field.checked;
+      return payload;
+    }
+
+    payload[field.name] = field.value;
+    return payload;
+  }, {});
+}
+
+function setFormSubmitting(form, isSubmitting) {
+  const submitButton = form.querySelector("[type='submit']");
+
+  if (!submitButton) return;
+
+  submitButton.disabled = isSubmitting;
+  if (!submitButton.dataset.originalText) {
+    submitButton.dataset.originalText = submitButton.textContent;
+  }
+  submitButton.textContent = isSubmitting ? "Submitting..." : submitButton.dataset.originalText;
+}
+
+async function submitRegistrationForm(form) {
+  const supabaseConfig = window.SEORC_SUPABASE;
+
+  if (!supabaseConfig) {
+    throw new Error("Supabase is not configured for this page.");
+  }
+
+  const submission = {
+    form_type: getFormType(),
+    page_path: window.location.pathname,
+    payload: getFormPayload(form),
+  };
+
+  const response = await fetch(`${supabaseConfig.url}/rest/v1/registrations`, {
+    method: "POST",
+    headers: {
+      apikey: supabaseConfig.anonKey,
+      Authorization: `Bearer ${supabaseConfig.anonKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(submission),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Supabase submission failed with status ${response.status}`);
+  }
+}
+
 staticForms.forEach((form) => {
-  form.addEventListener("submit", (event) => {
+  form.dataset.supabaseReady = window.SEORC_SUPABASE ? "true" : "false";
+
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     let status = form.querySelector(".form-status");
@@ -322,6 +384,19 @@ staticForms.forEach((form) => {
       form.append(status);
     }
 
-    status.textContent = "Form ready. Online submissions can be connected when the club chooses a form service.";
+    setFormSubmitting(form, true);
+    status.textContent = "Submitting...";
+
+    try {
+      await submitRegistrationForm(form);
+      form.reset();
+      populateEventSelects();
+      status.textContent = "Thanks, your registration has been submitted.";
+    } catch (error) {
+      status.textContent = "Registration could not be submitted. Please try again or contact the club.";
+      console.error("Supabase registration submission failed:", error);
+    } finally {
+      setFormSubmitting(form, false);
+    }
   });
 });
