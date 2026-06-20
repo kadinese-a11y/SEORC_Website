@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Event Detail | SEORC Admin</title>
+    <meta name="description" content="SEORC admin event registration detail view.">
+    <link rel="stylesheet" href="styles.css?v=20260619-results-persist">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="SEORC home">
+        <img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true">
+        <span>
+          <strong>SEORC</strong>
+          <small>Shoalhaven Extreme Obstacle Racing Club</small>
+        </span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="registration.html">Registration</a>
+        <a href="media.html">Media</a>
+        <a href="calendar.html">Calendar</a>
+        <a href="admin.html">Admin</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-title">
+        <p class="eyebrow">Admin</p>
+        <h1 data-event-page-title>Event detail.</h1>
+        <p data-event-page-summary>Loading event registrations...</p>
+      </section>
+
+      <section class="admin-layout">
+        <section class="registration-admin-list event-detail-page" data-event-page>
+          <div class="admin-actions">
+            <a class="button secondary form-submit" href="admin.html">Back to Dashboard</a>
+            <button class="button secondary form-submit" type="button" data-refresh-event-detail>Refresh</button>
+          </div>
+          <div data-event-page-content>
+            <p class="empty-state">Loading registrations...</p>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Temporary development admin view. Add login again before launch.</p>
+      <p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="admin.html">Admin</a></p>
+    </footer>
+
+    <script src="config/supabaseClient.js?v=20260615"></script>
+    <script src="script.js?v=20260619-results-persist"></script>
+  </body>
+</html>

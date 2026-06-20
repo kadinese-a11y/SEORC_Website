@@ -242,6 +242,7 @@ h3 {
 .gallery-section,
 .media-gallery,
 .page-title,
+.confirmation-hero,
 .registration-layout,
 .payment-panel,
 .calendar-tools,
@@ -484,6 +485,44 @@ h3 {
   font-size: 1.08rem;
 }
 
+.confirmation-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
+  gap: clamp(24px, 5vw, 56px);
+  align-items: center;
+  padding: clamp(36px, 7vw, 82px) 0;
+}
+
+.confirmation-hero img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.confirmation-copy {
+  display: grid;
+  gap: 18px;
+}
+
+.confirmation-copy h1,
+.confirmation-copy p {
+  margin: 0;
+}
+
+.confirmation-copy h1 {
+  color: var(--field-dark);
+  font-size: clamp(2.4rem, 6vw, 5rem);
+  line-height: 0.95;
+}
+
+.confirmation-copy p:not(.eyebrow) {
+  color: var(--muted);
+  font-size: 1.12rem;
+  font-weight: 700;
+}
+
 .registration-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 330px;
@@ -505,8 +544,7 @@ h3 {
   align-items: start;
 }
 
-.admin-panel[hidden],
-.admin-login[hidden] {
+.admin-panel[hidden] {
   display: none;
 }
 
@@ -522,7 +560,14 @@ h3 {
   font-weight: 800;
 }
 
-.event-admin-list {
+.admin-side-panel,
+.registration-admin-list {
+  display: grid;
+  gap: 24px;
+}
+
+.event-admin-list,
+.registration-admin-list {
   display: grid;
   gap: 16px;
   padding: 24px;
@@ -530,6 +575,459 @@ h3 {
   border: 1px solid var(--line);
   border-top: 6px solid var(--field);
   box-shadow: var(--shadow);
+}
+
+.admin-data-table {
+  display: grid;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+}
+
+.event-dashboard {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-page-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-page-links a {
+  padding: 9px 12px;
+  color: var(--field-dark);
+  font-weight: 900;
+  text-decoration: none;
+  background: rgba(40, 208, 210, 0.16);
+  border: 1px solid var(--field);
+}
+
+.admin-page-links a:hover {
+  background: var(--field);
+}
+
+.event-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.event-detail-stats div {
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.event-detail-stats dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.event-detail-stats dd {
+  margin: 0;
+  color: var(--field-dark);
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.admin-table-header,
+.admin-table-row {
+  display: grid;
+  gap: 12px;
+  min-width: 920px;
+  padding: 12px;
+}
+
+.event-overview-table .admin-table-header,
+.event-overview-table .admin-table-row {
+  grid-template-columns: minmax(240px, 1.7fr) minmax(160px, 1fr) 110px 80px 100px 110px;
+}
+
+.club-day-table .admin-table-header,
+.club-day-table .admin-table-row {
+  grid-template-columns: minmax(180px, 1.2fr) minmax(160px, 1fr) minmax(150px, 1fr) 90px 100px;
+}
+
+.member-table .admin-table-header,
+.member-table .admin-table-row {
+  grid-template-columns: minmax(180px, 1.2fr) minmax(220px, 1.3fr) 130px 130px 130px;
+}
+
+.show-class-table .admin-table-header,
+.show-class-table .admin-table-row {
+  grid-template-columns: 70px minmax(180px, 1.2fr) minmax(160px, 1fr) 130px 90px;
+}
+
+.show-dinner-table .admin-table-header,
+.show-dinner-table .admin-table-row {
+  grid-template-columns: minmax(180px, 1.2fr) minmax(220px, 1fr) 130px;
+}
+
+.show-camping-table .admin-table-header,
+.show-camping-table .admin-table-row {
+  grid-template-columns: minmax(180px, 1.1fr) minmax(170px, 1fr) 90px 90px minmax(160px, 1fr);
+}
+
+.show-non-member-table .admin-table-header,
+.show-non-member-table .admin-table-row {
+  grid-template-columns: minmax(180px, 1.1fr) minmax(190px, 1fr) minmax(140px, 0.8fr) minmax(190px, 1fr);
+}
+
+.judging-class-table .admin-table-header,
+.judging-class-table .admin-table-row {
+  grid-template-columns: minmax(180px, 1.4fr) 90px 130px 150px;
+}
+
+.public-points-page {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.public-points-page .show-class-panel,
+.public-points-page .admin-data-table {
+  min-width: 0;
+}
+
+.public-points-page .show-class-panel {
+  overflow-x: hidden;
+}
+
+.public-points-page .admin-data-table {
+  display: block;
+  width: min(100%, calc(100vw - 72px));
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.points-summary {
+  margin-bottom: 6px;
+  min-width: 0;
+}
+
+.points-rider-table .admin-table-header,
+.points-rider-table .admin-table-row {
+  grid-template-columns: 70px minmax(220px, 1.5fr) 120px 100px 100px;
+}
+
+.points-combo-table .admin-table-header,
+.points-combo-table .admin-table-row {
+  grid-template-columns: 70px minmax(190px, 1.2fr) minmax(170px, 1fr) 120px 100px 100px;
+}
+
+.admin-table-header {
+  color: var(--field-dark);
+  background: rgba(40, 208, 210, 0.16);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-table-row {
+  align-items: center;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  font-weight: 700;
+}
+
+.admin-table-row span {
+  overflow-wrap: anywhere;
+}
+
+.admin-table-row small {
+  display: block;
+  color: var(--muted);
+}
+
+.admin-table-title-link {
+  display: grid;
+  gap: 2px;
+  color: var(--field-dark);
+  text-decoration: none;
+}
+
+.admin-table-title-link:hover strong {
+  text-decoration: underline;
+}
+
+.event-registration-detail {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  background: #f9fdff;
+  border: 1px solid var(--line);
+}
+
+.event-registration-detail[hidden] {
+  display: none;
+}
+
+.event-detail-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.event-detail-heading h3,
+.event-detail-heading p {
+  margin: 0;
+}
+
+.event-detail-heading h3 {
+  font-size: 1.8rem;
+}
+
+.event-detail-page,
+.event-edit-form,
+.show-class-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.show-class-panel {
+  padding: 18px;
+  background: #f9fdff;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--field);
+}
+
+.show-class-panel[hidden] {
+  display: none;
+}
+
+.class-complete-icon {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin-left: 8px;
+  padding: 3px 8px;
+  color: var(--field-dark);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  vertical-align: middle;
+  background: rgba(40, 208, 210, 0.2);
+  border: 1px solid var(--field);
+}
+
+.show-extra-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.show-extra-summary div {
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.show-extra-summary dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.show-extra-summary dd {
+  margin: 0;
+  color: var(--field-dark);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.show-draggable-row {
+  cursor: grab;
+}
+
+.show-draggable-row.is-dragging {
+  opacity: 0.55;
+}
+
+.show-draggable-row.show-drag-over {
+  outline: 2px solid var(--field);
+  outline-offset: -2px;
+}
+
+.drag-handle {
+  min-height: 34px;
+  padding: 7px 10px;
+  color: var(--field-dark);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  background: rgba(40, 208, 210, 0.16);
+  border: 1px solid var(--field);
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.results-podium {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.results-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.results-warning {
+  margin: 0;
+  color: #8a3b00;
+  font-weight: 900;
+}
+
+.results-podium article {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 6px solid var(--field);
+}
+
+.results-podium h2,
+.results-podium p {
+  margin: 0;
+}
+
+.results-podium h2 {
+  color: var(--field-dark);
+  font-size: 1.2rem;
+}
+
+.add-result-grid {
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(140px, 0.8fr);
+}
+
+.results-entry-list {
+  display: grid;
+  gap: 16px;
+}
+
+.results-entry-row {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--field);
+}
+
+.results-entry-row.is-scratched {
+  opacity: 0.68;
+  border-left-color: var(--muted);
+}
+
+.results-entry-main,
+.results-entry-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.results-entry-main h3,
+.results-entry-main p {
+  margin: 0;
+}
+
+.results-entry-main h3 {
+  color: var(--field-dark);
+}
+
+.obstacle-score-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(78px, 1fr));
+  gap: 8px;
+}
+
+.obstacle-score-grid label {
+  gap: 4px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.obstacle-score-grid input {
+  min-height: 38px;
+  padding: 8px;
+}
+
+.obstacle-score-grid input::-webkit-outer-spin-button,
+.obstacle-score-grid input::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.obstacle-score-grid input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.result-total-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.results-entry-footer strong {
+  color: var(--field-dark);
+  font-size: 1.4rem;
+}
+
+.event-attendee-table {
+  display: grid;
+  border: 1px solid var(--line);
+}
+
+.event-attendee-header,
+.event-attendee-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1fr 1fr;
+  gap: 12px;
+  padding: 12px;
+}
+
+.event-attendee-header {
+  color: var(--field-dark);
+  background: rgba(40, 208, 210, 0.16);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.event-attendee-row {
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  font-weight: 700;
+}
+
+.event-attendee-row span {
+  overflow-wrap: anywhere;
+}
+
+.all-registration-list summary {
+  cursor: pointer;
+  color: var(--field-dark);
+  font-weight: 900;
 }
 
 .admin-event-item {
@@ -548,6 +1046,54 @@ h3 {
 .admin-event-item h3,
 .admin-event-item p {
   margin: 0;
+}
+
+.registration-item {
+  display: grid;
+  gap: 16px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.registration-item:last-child {
+  border-bottom: 0;
+}
+
+.registration-item-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.registration-item-heading h3,
+.registration-item-heading p {
+  margin: 0;
+}
+
+.registration-item-heading span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.registration-item dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 18px;
+  margin: 0;
+}
+
+.registration-item dt {
+  color: var(--field-dark);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.registration-item dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .empty-state {
@@ -689,6 +1235,142 @@ textarea:focus {
 .check-row input {
   min-height: auto;
   margin-top: 4px;
+}
+
+.field-note {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 0.94rem;
+  font-weight: 700;
+}
+
+.field-note a {
+  color: var(--field-dark);
+  font-weight: 900;
+}
+
+.horse-entry {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  background: #f9fdff;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--field);
+}
+
+.horse-entry + .horse-entry {
+  margin-top: 18px;
+}
+
+.horse-entry-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.horse-entry-heading h3 {
+  margin: 0;
+  color: var(--field-dark);
+  font-size: 1.2rem;
+}
+
+.class-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.class-grid .check-row,
+.show-registration-form fieldset > .check-row {
+  min-height: 58px;
+  margin-top: 0;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.check-row strong {
+  display: block;
+  color: var(--clay);
+}
+
+.camping-option-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.camping-option-grid .check-row {
+  min-height: 72px;
+  margin-top: 0;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.camping-detail-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.camping-detail-grid label {
+  align-content: start;
+  min-height: 138px;
+}
+
+.camping-detail-grid .field-note {
+  margin-bottom: 0;
+}
+
+.compact {
+  padding: 10px 12px;
+}
+
+.compact-button {
+  padding: 8px 12px;
+  font-size: 0.86rem;
+}
+
+.add-horse-row {
+  margin-top: 18px;
+}
+
+.tally-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.tally-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tally-list dt {
+  color: var(--field-dark);
+  font-weight: 900;
+}
+
+.tally-list dd {
+  margin: 0;
+  color: var(--clay);
+  font-weight: 900;
+}
+
+.tally-list .tally-grand-total {
+  align-items: center;
+  padding: 16px;
+  background: rgba(40, 208, 210, 0.16);
+  border: 1px solid var(--field);
+}
+
+.tally-grand-total dt,
+.tally-grand-total dd {
+  font-size: 1.2rem;
 }
 
 .form-submit {
@@ -939,6 +1621,13 @@ textarea:focus {
   .photo-grid,
   .media-gallery,
   .admin-panel,
+  .event-dashboard,
+  .event-detail-heading,
+  .confirmation-hero,
+  .results-podium,
+  .results-entry-main,
+  .results-entry-footer,
+  .add-result-grid,
   .registration-layout,
   .registration-options {
     grid-template-columns: 1fr;
@@ -980,6 +1669,15 @@ textarea:focus {
     grid-column: 2;
     margin-top: 0;
   }
+
+  .event-attendee-table {
+    overflow-x: auto;
+  }
+
+  .event-attendee-header,
+  .event-attendee-row {
+    min-width: 760px;
+  }
 }
 
 @media (max-width: 560px) {
@@ -1010,6 +1708,11 @@ textarea:focus {
   }
 
   .form-grid,
+  .class-grid,
+  .camping-option-grid,
+  .camping-detail-grid,
+  .obstacle-score-grid,
+  .registration-item dl,
   .stats-grid {
     grid-template-columns: 1fr;
   }
@@ -1043,5 +1746,9 @@ textarea:focus {
 
   .event-item .text-link {
     grid-column: auto;
+  }
+
+  .event-detail-stats {
+    grid-template-columns: 1fr;
   }
 }

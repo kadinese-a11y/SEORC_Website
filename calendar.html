@@ -26,6 +26,8 @@
         <a href="registration.html">Registration</a>
         <a href="media.html">Media</a>
         <a class="active" href="calendar.html">Calendar</a>
+        <a href="achieved-events.html">Achieved Events</a>
+        <a href="points.html">Points</a>
       </nav>
     </header>
 
@@ -43,6 +45,8 @@
         <button class="filter-button" type="button" data-filter="clinic">Clinics</button>
       </section>
 
+      <p class="field-note">Looking for a past day? <a href="achieved-events.html">View achieved events and published show data</a>.</p>
+
       <section class="event-list" data-event-list aria-label="SEORC event list">
       </section>
     </main>
@@ -52,6 +56,7 @@
       <p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="admin.html">Admin</a></p>
     </footer>
 
-    <script src="script.js"></script>
+    <script src="config/supabaseClient.js?v=20260620"></script>
+    <script src="script.js?v=20260620-achieved-events"></script>
   </body>
 </html>

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Annual Points | SEORC</title>
+    <meta name="description" content="Public SEORC annual points leaderboard for riders and rider horse combinations.">
+    <link rel="stylesheet" href="styles.css?v=20260619-points5">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="SEORC home">
+        <img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true">
+        <span>
+          <strong>SEORC</strong>
+          <small>Shoalhaven Extreme Obstacle Racing Club</small>
+        </span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="registration.html">Registration</a>
+        <a href="media.html">Media</a>
+        <a href="calendar.html">Calendar</a>
+        <a class="active" href="points.html">Points</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-title">
+        <p class="eyebrow">Annual points</p>
+        <h1>Calendar year leaderboards.</h1>
+        <p data-points-summary>Loading processed show results...</p>
+      </section>
+
+      <section class="admin-layout public-points-page" data-points-page>
+        <dl class="show-extra-summary points-summary" data-points-totals>
+          <div>
+            <dt>Year</dt>
+            <dd data-points-year>--</dd>
+          </div>
+          <div>
+            <dt>Riders</dt>
+            <dd data-points-rider-count>--</dd>
+          </div>
+          <div>
+            <dt>Horse combos</dt>
+            <dd data-points-combo-count>--</dd>
+          </div>
+          <div>
+            <dt>Results counted</dt>
+            <dd data-points-result-count>--</dd>
+          </div>
+        </dl>
+
+        <section class="show-class-panel">
+          <div class="form-heading">
+            <p class="eyebrow">Rider leaderboard</p>
+            <h2>Rider annual points</h2>
+          </div>
+          <div data-rider-points>
+            <p class="empty-state">Loading rider points...</p>
+          </div>
+        </section>
+
+        <section class="show-class-panel">
+          <div class="form-heading">
+            <p class="eyebrow">Horse combination leaderboard</p>
+            <h2>Rider and horse annual points</h2>
+          </div>
+          <div data-combo-points>
+            <p class="empty-state">Loading rider and horse points...</p>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Points are calculated from processed show results for the selected calendar year.</p>
+      <p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="calendar.html">Calendar</a></p>
+    </footer>
+
+    <script src="config/supabaseClient.js?v=20260618"></script>
+    <script src="script.js?v=20260619-points2"></script>
+  </body>
+</html>

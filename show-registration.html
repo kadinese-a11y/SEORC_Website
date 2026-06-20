@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Show Registration | SEORC</title>
     <meta name="description" content="SEORC show registration details.">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20260618-section-3">
   </head>
   <body>
     <header class="site-header">
@@ -26,6 +26,7 @@
         <a class="active" href="registration.html">Registration</a>
         <a href="media.html">Media</a>
         <a href="calendar.html">Calendar</a>
+        <a href="points.html">Points</a>
       </nav>
     </header>
 
@@ -33,15 +34,16 @@
       <section class="page-title">
         <p class="eyebrow">Form 3</p>
         <h1>Show Registration Form</h1>
-        <p>This page is reserved for future show registration details.</p>
+        <p>Enter rider, horse, class, camping, yard, dinner, and membership details for the show day.</p>
       </section>
 
       <section class="registration-layout">
-        <form class="registration-form form-panel" aria-labelledby="show-registration-title">
+        <form class="registration-form form-panel show-registration-form" aria-labelledby="show-registration-title" data-show-registration-form>
           <div class="form-heading">
             <p class="eyebrow">Show entry</p>
-            <h2 id="show-registration-title">Choose a show date.</h2>
+            <h2 id="show-registration-title">Show day registration.</h2>
           </div>
+
           <fieldset>
             <legend>Show Date</legend>
             <label>
@@ -51,19 +53,173 @@
               </select>
             </label>
           </fieldset>
+
           <fieldset>
-            <legend>Entry Details</legend>
+            <legend>Section 1: Participant Details</legend>
             <div class="form-grid">
               <label>
-                Rider name
-                <input name="show-rider-name" type="text" autocomplete="name" required>
+                First name
+                <input name="participant-first-name" type="text" autocomplete="given-name" required>
               </label>
               <label>
-                Horse name
-                <input name="show-horse-name" type="text" required>
+                Last name
+                <input name="participant-last-name" type="text" autocomplete="family-name" required>
+              </label>
+              <label>
+                Date of birth
+                <input name="participant-date-of-birth" type="date" required>
+              </label>
+              <label>
+                Phone number
+                <input name="participant-phone" type="tel" autocomplete="tel" required>
+              </label>
+              <label>
+                Email address
+                <input name="participant-email" type="email" autocomplete="email" required>
+              </label>
+              <label>
+                Riding level
+                <select name="riding-level" required>
+                  <option value="">Select riding level</option>
+                  <option>Professional</option>
+                  <option>Amateur</option>
+                  <option>Encouragement</option>
+                  <option>Rookie</option>
+                  <option>Junior</option>
+                </select>
               </label>
             </div>
           </fieldset>
+
+          <fieldset>
+            <legend>Section 2: Horse and Class Entries</legend>
+            <p class="field-note">Each horse can only be entered in a maximum of three classes per day, as per the <a href="https://www.australianextremeobstacleracing.com.au/copy-of-rule-book" target="_blank" rel="noopener">Australian Extreme Obstacle Racing rules</a>.</p>
+
+            <div data-horse-list>
+              <section class="horse-entry" data-horse-entry>
+                <div class="horse-entry-heading">
+                  <h3>Horse 1</h3>
+                </div>
+                <label>
+                  Horse name
+                  <input name="horse-1-name" type="text" required>
+                </label>
+                <div class="class-grid" data-class-group>
+                  <label class="check-row">
+                    <input name="horse-1-class-open" type="checkbox" value="Open" data-price="30">
+                    <span>Open <strong>$30.00</strong></span>
+                  </label>
+                  <label class="check-row">
+                    <input name="horse-1-class-limited-open" type="checkbox" value="Limited Open" data-price="30">
+                    <span>Limited Open <strong>$30.00</strong></span>
+                  </label>
+                  <label class="check-row">
+                    <input name="horse-1-class-amateur" type="checkbox" value="Amateur" data-price="30">
+                    <span>Amateur <strong>$30.00</strong></span>
+                  </label>
+                  <label class="check-row">
+                    <input name="horse-1-class-masters" type="checkbox" value="Masters" data-price="30">
+                    <span>Masters <strong>$30.00</strong></span>
+                  </label>
+                  <label class="check-row">
+                    <input name="horse-1-class-encouragement" type="checkbox" value="Encouragement" data-price="25">
+                    <span>Encouragement <strong>$25.00</strong></span>
+                  </label>
+                  <label class="check-row">
+                    <input name="horse-1-class-rookie" type="checkbox" value="Rookie" data-price="25">
+                    <span>Rookie <strong>$25.00</strong></span>
+                  </label>
+                  <label class="check-row">
+                    <input name="horse-1-class-junior" type="checkbox" value="Junior" data-price="20">
+                    <span>Junior <strong>$20.00</strong></span>
+                  </label>
+                  <label class="check-row">
+                    <input name="horse-1-class-young-rider" type="checkbox" value="Young Rider" data-price="20">
+                    <span>Young Rider <strong>$20.00</strong></span>
+                  </label>
+                  <label class="check-row">
+                    <input name="horse-1-class-green-horse" type="checkbox" value="Green Horse" data-price="25">
+                    <span>Green Horse <strong>$25.00</strong></span>
+                  </label>
+                </div>
+                <p class="form-status compact" data-class-limit-message hidden>Each horse can only enter three classes.</p>
+              </section>
+            </div>
+
+            <label class="check-row add-horse-row">
+              <input name="add-another-horse" type="checkbox" data-add-horse>
+              <span>Add another horse</span>
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Section 3: Camping &amp; Yards</legend>
+            <div class="camping-option-grid">
+              <label class="check-row">
+                <input name="camping-with-power" type="checkbox" value="Camping with power" data-price="30">
+                <span>Camping with power <strong>$30.00 per night</strong></span>
+              </label>
+              <label class="check-row">
+                <input name="camping-without-power" type="checkbox" value="Camping without power" data-price="20">
+                <span>Camping without power <strong>$20.00 per night</strong></span>
+              </label>
+            </div>
+            <div class="form-grid camping-detail-grid">
+              <label>
+                Number of camping nights
+                <input name="camping-night-count" type="number" min="0" step="1" value="0" data-price="0">
+                <span class="field-note">Applies to selected camping.</span>
+              </label>
+              <label>
+                Number of yards
+                <input name="yard-count" type="number" min="0" step="1" value="0" data-price="5">
+                <span class="field-note">Each yard is $5.00.</span>
+              </label>
+              <label>
+                Dinner tickets
+                <input name="dinner-count" type="number" min="0" step="1" value="0" data-price="30">
+                <span class="field-note">$30.00 per person.</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Section 4: Membership</legend>
+            <p class="field-note">SEORC is affiliated with <a href="https://www.australianextremeobstacleracing.com.au/" target="_blank" rel="noopener">Australian Extreme Obstacle Racing</a>. All riders must have an annual membership or day membership before competing.</p>
+            <label class="check-row">
+              <input name="aeora-membership" type="radio" value="annual" required>
+              <span>I have an annual membership with Australian Extreme Obstacle Racing.</span>
+            </label>
+            <label class="check-row">
+              <input name="aeora-membership" type="radio" value="day" data-price="30" required>
+              <span>I need a day membership <strong>$30.00</strong></span>
+            </label>
+            <p class="field-note">Please complete the <a href="https://www.australianextremeobstacleracing.com.au/copy-of-rule-book" target="_blank" rel="noopener">Australian Extreme Obstacle Racing day membership form</a> and email it to <a href="mailto:Admin@SEORC.com">Admin@SEORC.com</a> when complete.</p>
+          </fieldset>
+
+          <fieldset>
+            <legend>Section 5: Final Cost</legend>
+            <dl class="tally-list">
+              <div>
+                <dt>Class entries</dt>
+                <dd data-class-total>$0.00</dd>
+              </div>
+              <div>
+                <dt>Camping, yards, and dinner</dt>
+                <dd data-extras-total>$0.00</dd>
+              </div>
+              <div>
+                <dt>Membership</dt>
+                <dd data-membership-total>$0.00</dd>
+              </div>
+              <div class="tally-grand-total">
+                <dt>Total due</dt>
+                <dd data-grand-total>$0.00</dd>
+              </div>
+            </dl>
+            <input name="calculated-total" type="hidden" value="0" data-calculated-total>
+          </fieldset>
+
           <button class="button primary form-submit" type="submit">Submit Show Registration</button>
         </form>
 
@@ -83,7 +239,7 @@
       <p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="admin.html">Admin</a></p>
     </footer>
 
-    <script src="config/supabaseClient.js"></script>
-    <script src="script.js"></script>
+    <script src="config/supabaseClient.js?v=20260618"></script>
+    <script src="script.js?v=20260618-show-form"></script>
   </body>
 </html>

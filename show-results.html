@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Show Results | SEORC Judging</title>
+    <meta name="description" content="SEORC show class scoring page.">
+    <link rel="stylesheet" href="styles.css?v=20260619-results-persist">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="SEORC home">
+        <img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true">
+        <span>
+          <strong>SEORC</strong>
+          <small>Shoalhaven Extreme Obstacle Racing Club</small>
+        </span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="registration.html">Registration</a>
+        <a href="media.html">Media</a>
+        <a href="calendar.html">Calendar</a>
+        <a href="points.html">Points</a>
+        <a class="active" href="judging.html">Judging</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-title">
+        <p class="eyebrow">Show results</p>
+        <h1 data-results-title>Class scoring.</h1>
+        <p data-results-summary>Loading class entries...</p>
+      </section>
+
+      <section class="admin-layout">
+        <section class="registration-admin-list results-page" data-results-page>
+          <div class="admin-actions">
+            <a class="button secondary form-submit" data-results-back-link href="judging.html">Back to Judging</a>
+          </div>
+          <div data-results-content>
+            <p class="empty-state">Loading results...</p>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Judging view only. Financial and registration administration stays separate.</p>
+      <p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="judging.html">Judging</a></p>
+    </footer>
+
+    <script src="config/supabaseClient.js?v=20260618"></script>
+    <script src="script.js?v=20260619-judging"></script>
+  </body>
+</html>
