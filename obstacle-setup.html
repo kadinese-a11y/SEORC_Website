@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Show Obstacles | SEORC Admin</title>
+    <meta name="description" content="Set show obstacle names and download scoring cards.">
+    <link rel="stylesheet" href="styles.css?v=20260621-judge-card-layout">
+  </head>
+  <body data-admin-role-required>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="SEORC home"><img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true"><span><strong>SEORC</strong><small>Shoalhaven Extreme Obstacle Racing Club</small></span></a>
+      <nav class="site-nav"><a href="admin.html">Dashboard</a><a href="media-upload.html">Media upload</a></nav>
+    </header>
+    <main>
+      <section class="page-title"><p class="eyebrow">Show setup</p><h1 data-obstacle-setup-title>Obstacle names.</h1><p data-obstacle-setup-summary>Name the obstacles for this show before downloading the judge scoring cards.</p></section>
+      <section class="admin-layout"><section class="registration-admin-list"><div class="admin-actions"><a class="button secondary form-submit" data-obstacle-back>Back to show</a><button class="button secondary form-submit" type="button" data-score-card-download>Download scoring cards PDF</button></div><form class="form-panel" data-obstacle-setup-form><div class="form-heading"><p class="eyebrow">Scoring card setup</p><h2>Judge and obstacles</h2><p>These names appear on the judge scoring cards and in the online scoring sheet.</p></div><label>Judge name<input name="judge_name" type="text" autocomplete="name" placeholder="Judge's full name"></label><div class="form-grid" data-obstacle-name-fields></div><button class="button primary form-submit" type="submit">Save judge and obstacle names</button><p class="form-status" data-obstacle-setup-status></p></form></section></section>
+    </main>
+    <footer class="site-footer"><p>Obstacle names are saved only to this show.</p><p class="footer-links"><a href="admin.html">Admin dashboard</a></p></footer>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+    <script src="config/supabaseClient.js?v=20260620"></script><script src="script.js?v=20260621-scoring-card-layout"></script>
+  </body>
+</html>

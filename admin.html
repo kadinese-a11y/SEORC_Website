@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Club Admin | SEORC</title>
     <meta name="description" content="SEORC club admin for registration submissions and events.">
-    <link rel="stylesheet" href="styles.css?v=20260619-judging">
+    <link rel="stylesheet" href="styles.css?v=20260621-dashboard-table-fix">
   </head>
   <body>
     <header class="site-header">
@@ -33,112 +33,35 @@
       <section class="page-title">
         <p class="eyebrow">Admin</p>
         <h1>Club registration dashboard.</h1>
-        <p>Development view for reviewing submitted registration forms and organising event attendance.</p>
+        <p>Manage events, registrations, judges, results, and club media.</p>
       </section>
 
       <section class="admin-layout">
-        <form class="form-panel" data-admin-login>
-          <div class="form-heading">
-            <p class="eyebrow">Secure access</p>
-            <h2>Admin sign in</h2>
-          </div>
-          <div class="form-grid">
-            <label>Email<input name="email" type="email" autocomplete="username" required></label>
-            <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
-          </div>
-          <button class="button primary form-submit" type="submit">Sign in</button>
-          <p class="form-status" data-admin-login-status></p>
-        </form>
         <section class="admin-panel" data-admin-panel>
-          <section class="registration-admin-list" aria-label="Submitted registrations">
+          <section class="registration-admin-list" aria-label="Club events">
             <div class="form-heading">
-              <p class="eyebrow">Registrations</p>
-              <h2>Event dashboard</h2>
+              <p class="eyebrow">Club management</p>
+              <h2>Club events</h2>
             </div>
             <div class="admin-actions">
-              <button class="button secondary form-submit" type="button" data-refresh-registrations>Refresh</button>
-              <a class="button secondary form-submit" href="judging.html">Open Judging Dashboard</a>
+              <a class="button secondary form-submit" href="add-event.html">Add event</a>
+              <a class="button secondary form-submit" href="admin-event.html?event=club-members">Club members</a>
+              <a class="button secondary form-submit" href="achieved-events.html">Archived events</a>
+              <a class="button secondary form-submit" href="media-upload.html">Media upload</a>
+              <a class="button secondary form-submit" href="club-settings.html">Club pricing</a>
             </div>
             <div class="event-dashboard" data-event-dashboard></div>
-            <details class="all-registration-list">
-              <summary>All submitted forms</summary>
-              <div data-registration-list></div>
-            </details>
-          </section>
-
-          <section class="admin-side-panel">
-            <form class="form-panel" data-judge-assignment>
-              <div class="form-heading"><p class="eyebrow">Judging access</p><h2>Assign a show judge</h2></div>
-              <label>Show event<select name="event" data-event-select="show" required><option value="">Select show</option></select></label>
-              <label>Judge user ID<input name="userId" type="text" required></label>
-              <p class="field-note">Create the judge’s Supabase Auth account first, then paste its user ID here.</p>
-              <button class="button primary form-submit" type="submit">Grant score-sheet access</button>
-              <p class="form-status" data-judge-assignment-status></p>
-            </form>
-            <form class="form-panel" data-media-upload>
-              <div class="form-heading"><p class="eyebrow">Media</p><h2>Upload gallery photo</h2></div>
-              <label>Photo<input name="file" type="file" accept="image/*" required></label>
-              <label>Alt text<input name="alt" type="text" required></label>
-              <label>Caption<input name="caption" type="text"></label>
-              <button class="button primary form-submit" type="submit">Upload as draft</button>
-              <p class="form-status" data-media-upload-status></p>
-            </form>
-            <form class="form-panel" data-event-admin-form>
-              <div class="form-heading">
-                <p class="eyebrow">New event</p>
-                <h2>Add an event</h2>
-              </div>
-              <fieldset>
-                <legend>Event Details</legend>
-                <div class="form-grid">
-                  <label>
-                    Event type
-                    <select name="type" required>
-                      <option value="">Select type</option>
-                      <option value="club">Club Day</option>
-                      <option value="show">Show</option>
-                      <option value="clinic">Clinic</option>
-                    </select>
-                  </label>
-                  <label>
-                    Date
-                    <input name="date" type="date" required>
-                  </label>
-                  <label>
-                    Title
-                    <input name="title" type="text" required>
-                  </label>
-                  <label>
-                    Location
-                    <input name="location" type="text" required>
-                  </label>
-                </div>
-                <label>
-                  Description
-                  <textarea name="description" rows="4" required></textarea>
-                </label>
-              </fieldset>
-              <button class="button primary form-submit" type="submit">Save Event</button>
-            </form>
-
-            <section class="event-admin-list" aria-label="Saved admin events">
-              <div class="form-heading">
-                <p class="eyebrow">Saved events</p>
-                <h2>Browser event list</h2>
-              </div>
-              <div data-admin-event-list></div>
-            </section>
           </section>
         </section>
       </section>
     </main>
 
     <footer class="site-footer">
-      <p>Registration data is stored in Supabase. Event drafts are still stored locally in this browser.</p>
-      <p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="admin.html">Admin</a></p>
+      <p>Registration and event data are managed in Supabase.</p>
+      <p class="footer-links"><a href="mailto:shoalhaveneorc25@gmail.com">shoalhaveneorc25@gmail.com</a><a href="admin.html">Admin</a></p>
     </footer>
 
     <script src="config/supabaseClient.js?v=20260615"></script>
-    <script src="script.js?v=20260619-judging"></script>
+    <script src="script.js?v=20260621-dashboard-table-fix"></script>
   </body>
 </html>

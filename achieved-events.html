@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Achieved Events | SEORC</title>
     <meta name="description" content="Past SEORC events and published show data.">
-    <link rel="stylesheet" href="styles.css?v=20260620-achieved-events">
+    <link rel="stylesheet" href="styles.css?v=20260620-archived-events-table">
   </head>
-  <body>
+  <body data-admin-role-required>
     <header class="site-header">
       <a class="brand" href="index.html" aria-label="SEORC home"><img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true"><span><strong>SEORC</strong><small>Shoalhaven Extreme Obstacle Racing Club</small></span></a>
       <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav"><span></span><span></span><span></span></button>
@@ -16,11 +16,11 @@
       </nav>
     </header>
     <main>
-      <section class="page-title"><p class="eyebrow">Achieved events</p><h1>Past SEORC days and published show data.</h1><p>Events move here automatically after their calendar day has passed. The live event record is removed after 12 months while this history remains.</p></section>
-      <section class="event-list" data-achieved-event-list aria-label="Achieved SEORC events"><p class="empty-state">Loading achieved events...</p></section>
+      <section class="page-title"><p class="eyebrow">Achieved events</p><h1>Past SEORC days and published show data.</h1><p>Events appear here when an admin publishes their results and archives them. Archived records are kept for 12 months.</p></section>
+      <section class="admin-layout"><section class="registration-admin-list"><div class="admin-actions"><a class="button secondary form-submit" href="admin.html">Back to Admin dashboard</a></div><div data-achieved-event-list aria-label="Achieved SEORC events"><p class="empty-state">Loading achieved events...</p></div></section></section>
     </main>
-    <footer class="site-footer"><p>Looking back, one muddy hoofprint at a time.</p><p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="calendar.html">Calendar</a></p></footer>
+    <footer class="site-footer"><p>Looking back, one muddy hoofprint at a time.</p><p class="footer-links"><a href="mailto:shoalhaveneorc25@gmail.com">shoalhaveneorc25@gmail.com</a><a href="calendar.html">Calendar</a></p></footer>
     <script src="config/supabaseClient.js?v=20260620"></script>
-    <script src="script.js?v=20260620-achieved-events"></script>
+    <script src="script.js?v=20260620-archived-events-table"></script>
   </body>
 </html>

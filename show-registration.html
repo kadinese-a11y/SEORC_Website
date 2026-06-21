@@ -51,6 +51,7 @@
               <select name="show-date" data-event-select="show" required>
                 <option value="">Select show date</option>
               </select>
+              <span class="field-note" data-event-options-info></span>
             </label>
           </fieldset>
 
@@ -152,7 +153,7 @@
             </label>
           </fieldset>
 
-          <fieldset>
+          <fieldset data-camping-options>
             <legend>Section 3: Camping &amp; Yards</legend>
             <div class="camping-option-grid">
               <label class="check-row">
@@ -175,16 +176,21 @@
                 <input name="yard-count" type="number" min="0" step="1" value="0" data-price="5">
                 <span class="field-note">Each yard is $5.00.</span>
               </label>
-              <label>
-                Dinner tickets
-                <input name="dinner-count" type="number" min="0" step="1" value="0" data-price="30">
-                <span class="field-note">$30.00 per person.</span>
-              </label>
             </div>
           </fieldset>
 
+          <fieldset data-dinner-options>
+            <legend>Section 4: Dinner</legend>
+            <p class="field-note" data-dinner-information>Choose the number of dinner tickets required.</p>
+            <label>
+              Dinner tickets
+              <input name="dinner-count" type="number" min="0" step="1" value="0" data-price="30">
+              <span class="field-note"><strong>$30.00</strong> per person.</span>
+            </label>
+          </fieldset>
+
           <fieldset>
-            <legend>Section 4: Membership</legend>
+            <legend>Section 5: Membership</legend>
             <p class="field-note">SEORC is affiliated with <a href="https://www.australianextremeobstacleracing.com.au/" target="_blank" rel="noopener">Australian Extreme Obstacle Racing</a>. All riders must have an annual membership or day membership before competing.</p>
             <label class="check-row">
               <input name="aeora-membership" type="radio" value="annual" required>
@@ -198,7 +204,7 @@
           </fieldset>
 
           <fieldset>
-            <legend>Section 5: Final Cost</legend>
+            <legend>Section 6: Final Cost</legend>
             <dl class="tally-list">
               <div>
                 <dt>Class entries</dt>
@@ -236,10 +242,10 @@
 
     <footer class="site-footer">
       <p>Questions before registering?</p>
-      <p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="admin.html">Admin</a></p>
+      <p class="footer-links"><a href="mailto:shoalhaveneorc25@gmail.com">shoalhaveneorc25@gmail.com</a><a href="admin.html">Admin</a></p>
     </footer>
 
     <script src="config/supabaseClient.js?v=20260618"></script>
-    <script src="script.js?v=20260618-show-form"></script>
+    <script src="script.js?v=20260620-event-specific-prices"></script>
   </body>
 </html>

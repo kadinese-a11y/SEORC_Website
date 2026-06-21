@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Event Detail | SEORC Admin</title>
     <meta name="description" content="SEORC admin event registration detail view.">
-    <link rel="stylesheet" href="styles.css?v=20260619-results-persist">
+    <link rel="stylesheet" href="styles.css?v=20260621-show-tools-only">
   </head>
-  <body>
+  <body data-admin-role-required>
     <header class="site-header">
       <a class="brand" href="index.html" aria-label="SEORC home">
         <img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true">
@@ -41,7 +41,8 @@
         <section class="registration-admin-list event-detail-page" data-event-page>
           <div class="admin-actions">
             <a class="button secondary form-submit" href="admin.html">Back to Dashboard</a>
-            <button class="button secondary form-submit" type="button" data-refresh-event-detail>Refresh</button>
+            <button class="button secondary form-submit" type="button" data-show-pdf-download hidden>Download show PDF</button>
+            <a class="button secondary form-submit" data-obstacle-setup-link hidden>Set obstacles & scoring cards</a>
           </div>
           <div data-event-page-content>
             <p class="empty-state">Loading registrations...</p>
@@ -52,10 +53,11 @@
 
     <footer class="site-footer">
       <p>Temporary development admin view. Add login again before launch.</p>
-      <p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="admin.html">Admin</a></p>
+      <p class="footer-links"><a href="mailto:shoalhaveneorc25@gmail.com">shoalhaveneorc25@gmail.com</a><a href="admin.html">Admin</a></p>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
     <script src="config/supabaseClient.js?v=20260615"></script>
-    <script src="script.js?v=20260619-results-persist"></script>
+    <script src="script.js?v=20260621-publish-score-state"></script>
   </body>
 </html>

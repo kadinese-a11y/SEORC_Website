@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SEORC | Shoalhaven Extreme Obstacle Racing Club</title>
     <meta name="description" content="Shoalhaven Extreme Obstacle Racing Club is a horse riding club for obstacle racing, confidence building, training days, and community events.">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20260621-provided-horse-icons">
   </head>
   <body>
     <header class="site-header">
@@ -25,14 +25,14 @@
         <a class="active" href="index.html">Home</a>
         <a href="registration.html">Registration</a>
         <a href="media.html">Media</a>
-        <a href="calendar.html">Calendar</a>
+        <a href="calendar.html">Events</a>
         <a href="points.html">Points</a>
       </nav>
     </header>
 
     <main>
       <section class="hero">
-        <img src="assets/training-platform-rider.jpg" alt="SEORC riders and horses at a club obstacle day">
+        <img data-homepage-slot="hero" src="assets/training-platform-rider.jpg" alt="SEORC riders and horses at a club obstacle day">
         <div class="hero-content">
           <p class="eyebrow">Horse obstacle racing in the Shoalhaven</p>
           <h1>Shoalhaven Extreme Obstacle Racing Club</h1>
@@ -56,17 +56,17 @@
 
       <section class="feature-band">
         <article>
-          <span class="feature-icon">01</span>
+          <img class="feature-icon feature-icon-image" src="assets/horseshoe-icon.png" alt="Horseshoe">
           <h3>Training Days</h3>
           <p>Low-pressure sessions across bridges, gates, poles, tarps, water, and trail-style challenges.</p>
         </article>
         <article>
-          <span class="feature-icon">02</span>
-          <h3>Club Racing</h3>
+          <img class="feature-icon feature-icon-image" src="assets/running-horse-icon.png" alt="Running horse">
+          <h3>Competitions</h3>
           <p>Timed obstacle patterns that reward calm riding, accuracy, partnership, and forward thinking.</p>
         </article>
         <article>
-          <span class="feature-icon">03</span>
+          <img class="feature-icon feature-icon-image" src="assets/saddled-horse-icon.png" alt="Saddled horse">
           <h3>Clinics</h3>
           <p>Guest coaches, groundwork refreshers, course strategy, and confidence sessions for all levels.</p>
         </article>
@@ -80,24 +80,21 @@
         </div>
         <div class="photo-grid">
           <figure class="photo-feature">
-            <img src="assets/training-platform-rider.jpg" alt="A rider guiding a paint horse across a raised platform obstacle">
-            <figcaption>Steady platform work for horse and rider confidence.</figcaption>
+            <img data-homepage-slot="gallery-1" src="assets/training-platform-rider.jpg" alt="A rider guiding a paint horse across a raised platform obstacle">
           </figure>
           <figure>
-            <img src="assets/pole-bending-rider.jpg" alt="A rider steering a horse through pole obstacles on grass">
-            <figcaption>Course patterns that reward timing and balance.</figcaption>
+            <img data-homepage-slot="gallery-2" src="assets/pole-bending-rider.jpg" alt="A rider steering a horse through pole obstacles on grass">
           </figure>
           <figure>
-            <img src="assets/groundwork-obstacle-day.jpg" alt="A handler leading a horse through an outdoor obstacle course">
-            <figcaption>Groundwork options for green horses and developing combinations.</figcaption>
+            <img data-homepage-slot="gallery-3" src="assets/groundwork-obstacle-day.jpg" alt="A handler leading a horse through an outdoor obstacle course">
           </figure>
           <figure>
-            <img src="assets/show-ring-rider.jpg" alt="A rider in festive dress waving from horseback in an arena">
-            <figcaption>Community events, shows, and plenty of club spirit.</figcaption>
+            <img data-homepage-slot="gallery-4" src="assets/show-ring-rider.jpg" alt="A rider in festive dress waving from horseback in an arena">
           </figure>
         </div>
       </section>
 
+      <section class="membership-next">
       <section class="split-section">
         <div>
           <p class="eyebrow">Membership</p>
@@ -134,13 +131,15 @@
         </div>
         <a class="button primary" href="calendar.html">See Full Calendar</a>
       </section>
+      </section>
     </main>
 
     <footer class="site-footer">
-      <p>SEORC acknowledges the riders, volunteers, landholders, and families who make local horse sport possible.</p>
-      <p class="footer-links"><a href="mailto:contact@seorc.org.au">contact@seorc.org.au</a><a href="admin.html">Admin</a></p>
+      <p><img class="footer-mark" src="assets/seorc-club-logo.png" alt="">SEORC acknowledges the riders, volunteers, landholders, and families who make local horse sport possible.</p>
+      <p class="footer-links"><a href="mailto:shoalhaveneorc25@gmail.com">shoalhaveneorc25@gmail.com</a><a href="admin.html">Admin</a><a href="judge-login.html">Judge</a></p>
     </footer>
 
-    <script src="script.js"></script>
+    <script src="config/supabaseClient.js?v=20260620"></script>
+    <script src="script.js?v=20260621-photo-no-captions"></script>
   </body>
 </html>

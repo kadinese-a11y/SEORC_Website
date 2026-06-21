@@ -47,13 +47,6 @@ Deno.serve(async (request) => {
     });
   }
 
-  if (!resendApiKey || !fromEmail) {
-    return new Response(JSON.stringify({ error: "Email delivery has not been configured." }), {
-      status: 503,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   const adminClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -88,6 +81,9 @@ Deno.serve(async (request) => {
     });
   }
 
+  const { data: event, error: eventError } = await adminClient.from("events").select("*").eq("id", eventId).single();
+  if (eventError || !event) return new Response(JSON.stringify({ error: "Event not found." }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
   const { data: registrations, error: registrationsError } = await adminClient
     .from("registrations")
     .select("id, payload")
@@ -95,9 +91,9 @@ Deno.serve(async (request) => {
 
   if (registrationsError) throw registrationsError;
 
+  const attendeeRegistrations = (registrations || []).filter((registration) => registrationEventId(registration.payload || {}) === eventId);
   const recipients = [...new Set(
-    (registrations || [])
-      .filter((registration) => registrationEventId(registration.payload || {}) === eventId)
+    attendeeRegistrations
       .map((registration) => attendeeEmail(registration.payload || {}))
       .filter((email): email is string => Boolean(email)),
   )];
@@ -110,7 +106,7 @@ Deno.serve(async (request) => {
       message: message?.trim() || null,
       cancelled_by: user.id,
       recipient_count: recipients.length,
-      notification_status: "sending",
+      notification_status: resendApiKey && fromEmail ? "sending" : "failed",
     })
     .select("id")
     .single();
@@ -124,7 +120,7 @@ Deno.serve(async (request) => {
     <p>Please contact SEORC if you have any questions about your registration.</p>
   `;
 
-  const outcomes = await Promise.allSettled(recipients.map(async (to) => {
+  const outcomes = resendApiKey && fromEmail ? await Promise.allSettled(recipients.map(async (to) => {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -140,7 +136,7 @@ Deno.serve(async (request) => {
     });
 
     if (!response.ok) throw new Error(await response.text());
-  }));
+  })) : [];
 
   const sentCount = outcomes.filter((outcome) => outcome.status === "fulfilled").length;
   const failedCount = outcomes.length - sentCount;
@@ -148,13 +144,23 @@ Deno.serve(async (request) => {
     .from("event_cancellations")
     .update({
       sent_count: sentCount,
-      failed_count: failedCount,
-      notification_status: failedCount ? "partially_sent" : "sent",
+      failed_count: resendApiKey && fromEmail ? failedCount : recipients.length,
+      notification_status: resendApiKey && fromEmail ? (failedCount ? "partially_sent" : "sent") : "failed",
       notified_at: new Date().toISOString(),
     })
     .eq("id", cancellation.id);
 
-  return new Response(JSON.stringify({ sentCount, failedCount, recipientCount: recipients.length }), {
+  if (attendeeRegistrations.length) {
+    const { data: results, error: resultsError } = await adminClient.from("show_results").select("*").eq("event_id", eventId);
+    if (resultsError) throw resultsError;
+    const cancelledAt = new Date().toISOString();
+    const { error: archiveError } = await adminClient.from("achieved_events").upsert({ event_id: eventId, event_date: event.date, event_data: { ...event, cancelled_at: cancelledAt, cancellation_notice: message?.trim() || "This event was cancelled." }, results: results || [] }, { onConflict: "event_id" });
+    if (archiveError) throw archiveError;
+  }
+  const { error: deleteError } = await adminClient.from("events").delete().eq("id", eventId);
+  if (deleteError) throw deleteError;
+
+  return new Response(JSON.stringify({ sentCount, failedCount, recipientCount: recipients.length, archived: attendeeRegistrations.length > 0, emailConfigured: Boolean(resendApiKey && fromEmail) }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
