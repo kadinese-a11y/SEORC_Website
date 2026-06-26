@@ -43,6 +43,13 @@
             <legend>Rider Details</legend>
             <div class="form-grid">
               <label>
+                Membership type
+                <select name="club-membership-type" data-membership-type required>
+                  <option value="adult">Adult member</option>
+                  <option value="junior">Junior member</option>
+                </select>
+              </label>
+              <label>
                 First name
                 <input name="club-first-name" type="text" autocomplete="given-name" required>
               </label>
@@ -126,7 +133,7 @@
 
           <section class="final-cost-panel" aria-label="Membership cost summary">
             <p class="eyebrow">Final cost</p>
-            <div><span>Annual SEORC membership</span><strong data-annual-membership-fee>$20.00</strong></div>
+            <div><span data-annual-membership-label>Adult SEORC membership</span><strong data-annual-membership-fee>$20.00</strong></div>
             <div class="final-cost-total"><span>Total payable</span><strong data-annual-membership-total>$20.00</strong></div>
           </section>
 

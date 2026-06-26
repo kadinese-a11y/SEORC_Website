@@ -9,6 +9,7 @@ const defaultClubDayFee = 40;
 const defaultDayMembershipFee = 30;
 const defaultClinicFee = 170;
 let annualMembershipFee = 20;
+let juniorMembershipFee = 15;
 const showObstacleCount = 14;
 let adminRegistrations = [];
 let showResults = [];
@@ -80,16 +81,48 @@ const registrationFormLabels = {
   website_form: "Website Form",
 };
 const showClassSlugs = [
-  "open",
-  "limited-open",
+  "young-rider",
+  "junior",
+  "encouragement",
+  "green-horse",
+  "rookie",
   "amateur",
   "masters",
-  "encouragement",
-  "rookie",
-  "junior",
-  "young-rider",
-  "green-horse",
+  "open",
+  "limited-open",
 ];
+const defaultShowClassPrices = {
+  "young-rider": 15,
+  junior: 15,
+  encouragement: 25,
+  "green-horse": 25,
+  rookie: 25,
+  amateur: 25,
+  masters: 25,
+  open: 30,
+  "limited-open": 30,
+};
+function getShowClassSlug(className) {
+  return String(className || "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+function getDefaultShowClassPrice(slug) {
+  return defaultShowClassPrices[slug] ?? 25;
+}
+function sortShowClassNames(classNames) {
+  return [...classNames].sort((a, b) => {
+    const aIndex = showClassSlugs.indexOf(getShowClassSlug(a));
+    const bIndex = showClassSlugs.indexOf(getShowClassSlug(b));
+    if (aIndex !== -1 || bIndex !== -1) {
+      return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+    }
+    return String(a).localeCompare(String(b));
+  });
+}
 
 function getObstacleNames(event) {
   const savedNames = Array.isArray(event?.event_settings?.obstacle_names) ? event.event_settings.obstacle_names : [];
@@ -141,8 +174,9 @@ function getEvents() {
 
 async function loadSharedEvents() {
   try {
-    remoteEvents = await requestSupabase("/rest/v1/events?select=*&order=date.asc");
+    remoteEvents = await requestSupabase("/rest/v1/events?cancelled_at=is.null&select=*&order=date.asc");
     renderCalendarEvents();
+    renderNextEventPreview();
     populateEventSelects();
     renderEventDashboard(adminRegistrations);
     applySelectedEventSettings();
@@ -161,8 +195,7 @@ function applySelectedEventSettings() {
     if (type === "club" && info) { const fee = Number(settings.club_day_fee ?? defaultClubDayFee); form.dataset.eventFee = String(fee); info.textContent = event ? `Club day fee: ${formatCurrency(fee)}` : ""; updateClubDayTotal(form); }
     if (type === "clinic" && info) { const fee = Number(settings.clinic_fee ?? defaultClinicFee); form.dataset.eventFee = String(fee); info.textContent = event ? `Clinic fee: ${formatCurrency(fee)}` : ""; updateClinicTotal(form); }
     if (type === "show" && form && event) {
-      const defaultClassPrice = (slug) => (slug === "open" || slug === "limited-open" || slug === "amateur" || slug === "masters" ? 30 : slug === "junior" || slug === "young-rider" ? 20 : 25);
-      showClassSlugs.forEach((slug) => { const input = form.querySelector(`[name$="-class-${slug}"]`); const price = Number(settings.class_prices?.[slug] ?? defaultClassPrice(slug)); if (input) { input.dataset.price = price; input.closest("label")?.querySelector("strong")?.replaceChildren(formatCurrency(price)); } });
+      showClassSlugs.forEach((slug) => { const input = form.querySelector(`[name$="-class-${slug}"]`); const price = Number(settings.class_prices?.[slug] ?? getDefaultShowClassPrice(slug)); if (input) { input.dataset.price = price; input.closest("label")?.querySelector("strong")?.replaceChildren(formatCurrency(price)); } });
       [["dinner-count", settings.dinner_price ?? 30], ["camping-with-power", settings.powered_camping_price ?? 30], ["camping-without-power", settings.unpowered_camping_price ?? 20], ["yard-count", settings.yard_price ?? 5]].forEach(([field, price]) => { const input = form.querySelector(`[name="${field}"]`); if (input) { input.dataset.price = price; input.closest("label")?.querySelector("strong")?.replaceChildren(formatCurrency(Number(price))); } });
       form.querySelectorAll("[data-class-group] input[data-price]").forEach((input) => { const available = Number(input.dataset.price) > 0; input.closest("label").style.display = available ? "" : "none"; if (!available) input.checked = false; });
       ["camping-with-power", "camping-without-power", "yard-count"].forEach((field) => { const input = form.querySelector(`[name="${field}"]`); if (!input) return; const available = Number(input.dataset.price) > 0; input.closest("label").style.display = available ? "" : "none"; if (!available) { input.checked = false; if (input.type === "number") input.value = 0; } });
@@ -277,13 +310,32 @@ function registrationPageForType(type) {
   return "club-day-registration.html";
 }
 
+function renderNextEventPreview() {
+  const preview = document.querySelector("[data-next-event-preview]");
+  const title = document.querySelector("[data-next-event-title]");
+  const details = document.querySelector("[data-next-event-details]");
+  if (!preview || !title || !details) return;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const [nextEvent] = getEvents().filter((event) => event.date >= today);
+
+  if (!nextEvent) {
+    title.textContent = "More events coming soon";
+    details.textContent = "Check the calendar again soon for the next SEORC event.";
+    return;
+  }
+
+  title.textContent = nextEvent.title;
+  details.textContent = `${formatDateParts(nextEvent.date).label} at ${nextEvent.location}. ${nextEvent.description}`;
+}
+
 function renderCalendarEvents(filter = "all") {
   const eventList = document.querySelector("[data-event-list]");
 
   if (!eventList) return;
 
   const today = new Date().toISOString().slice(0, 10);
-  const events = getEvents().filter((event) => event.date >= today && (filter === "all" || event.type === filter));
+  const events = getEvents().filter((event) => event.date >= today && (filter === "all" || (filter === "external" ? event.type.startsWith("external-") : event.type === filter)));
   eventList.innerHTML = "";
 
   if (!events.length) {
@@ -303,7 +355,7 @@ function renderCalendarEvents(filter = "all") {
         <h2>${escapeHTML(event.title)}</h2>
         <p>${locationMapLink(event.location)}. ${escapeHTML(event.description)}</p>
       </div>
-      ${event.type.startsWith("external-") ? (event.event_settings?.provider_url ? `<a class="text-link" href="${escapeHTML(event.event_settings.provider_url)}" target="_blank" rel="noopener">Provider details</a>` : '<span class="field-note">Provider details coming soon.</span>') + `<p class="event-cost">${event.event_settings?.external_cost ? `Cost: ${escapeHTML(event.event_settings.external_cost)}` : "Cost: see provider"}</p>` : `<a class="text-link" href="${registrationPageForType(event.type)}">Register</a>`}
+      ${event.type.startsWith("external-") ? (event.event_settings?.provider_url ? `<a class="text-link" href="${escapeHTML(event.event_settings.provider_url)}" target="_blank" rel="noopener">Register</a>` : '<span class="field-note">Provider details coming soon.</span>') : `<a class="text-link" href="${registrationPageForType(event.type)}">Register</a>`}
     `;
     eventList.append(item);
   });
@@ -340,38 +392,82 @@ filterButtons.forEach((button) => {
 });
 
 renderCalendarEvents();
+renderNextEventPreview();
 populateEventSelects();
 loadSharedEvents();
 enableOpenStreetMapLocationSearch();
 
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-member-lookup-button]");
+  if (!button) return;
+  const panel = button.closest("[data-member-lookup]");
+  const form = button.closest("form");
+  const number = panel?.querySelector("[name='membership-number']")?.value.trim();
+  const email = panel?.querySelector("[name='membership-email']")?.value.trim();
+  if (!number || !email || !form) { alert("Enter both your SEORC membership number and membership email."); return; }
+  try {
+    const rows = await requestSupabase("/rest/v1/rpc/lookup_member_for_event", { method: "POST", body: JSON.stringify({ member_number: number, member_email: email }) });
+    const member = rows[0];
+    if (!member) { alert("No membership matched that number and email."); return; }
+    const prefix = panel.dataset.memberPrefix;
+    const set = (name, value) => { const field = form.querySelector(`[name='${name}']`); if (field) field.value = value || ""; };
+    set(`${prefix}-first-name`, member.first_name); set(`${prefix}-last-name`, member.last_name); set(`${prefix}-email`, member.email); set(`${prefix}-phone`, member.phone);
+    set("riding-level", member.riding_level); alert("Member details filled in.");
+  } catch (error) { alert(`Could not look up membership: ${error.message}`); }
+});
+
 async function loadClubSettings() {
   try {
-    const settings = await requestSupabase("/rest/v1/club_settings?setting_key=eq.annual_membership_fee&select=membership_fee");
-    const fee = Number(settings[0]?.membership_fee);
-    if (Number.isFinite(fee)) annualMembershipFee = fee;
+    const settings = await requestSupabase("/rest/v1/club_settings?select=setting_key,membership_fee");
+    const adultFee = Number(settings.find((setting) => setting.setting_key === "annual_membership_fee")?.membership_fee);
+    const juniorFee = Number(settings.find((setting) => setting.setting_key === "junior_membership_fee")?.membership_fee);
+    if (Number.isFinite(adultFee)) annualMembershipFee = adultFee;
+    if (Number.isFinite(juniorFee)) juniorMembershipFee = juniorFee;
   } catch (error) {
     console.warn("Club pricing could not be loaded; using the standard fee.", error);
   }
-  document.querySelectorAll("[data-annual-membership-fee]").forEach((element) => { element.textContent = formatCurrency(annualMembershipFee); });
-  document.querySelectorAll("[data-annual-membership-total]").forEach((element) => { element.textContent = formatCurrency(annualMembershipFee); });
-  document.querySelectorAll("[data-annual-membership-form]").forEach((form) => { form.dataset.calculatedTotal = String(annualMembershipFee); });
+  document.querySelectorAll("[data-annual-membership-form]").forEach(updateAnnualMembershipCost);
   document.querySelectorAll("[data-club-settings-form] [name='membership_fee']").forEach((input) => { input.value = annualMembershipFee.toFixed(2); });
+  document.querySelectorAll("[data-club-settings-form] [name='junior_membership_fee']").forEach((input) => { input.value = juniorMembershipFee.toFixed(2); });
 }
 
 loadClubSettings();
+
+function getSelectedMembershipFee(form) {
+  return form?.querySelector("[name='club-membership-type']")?.value === "junior" ? juniorMembershipFee : annualMembershipFee;
+}
+
+function updateAnnualMembershipCost(form) {
+  if (!form) return;
+  const isJunior = form.querySelector("[name='club-membership-type']")?.value === "junior";
+  const fee = isJunior ? juniorMembershipFee : annualMembershipFee;
+  form.dataset.calculatedTotal = String(fee);
+  form.querySelectorAll("[data-annual-membership-label]").forEach((element) => { element.textContent = isJunior ? "Junior SEORC membership" : "Adult SEORC membership"; });
+  form.querySelectorAll("[data-annual-membership-fee], [data-annual-membership-total]").forEach((element) => { element.textContent = formatCurrency(fee); });
+}
+
+document.addEventListener("change", (event) => {
+  if (event.target.matches("[data-membership-type]")) updateAnnualMembershipCost(event.target.closest("[data-annual-membership-form]"));
+});
 
 document.addEventListener("submit", async (event) => {
   const form = event.target.closest("[data-club-settings-form]");
   if (!form) return;
   event.preventDefault();
   const status = form.querySelector("[data-club-settings-status]");
-  const membershipFee = Number(new FormData(form).get("membership_fee"));
+  const formData = new FormData(form);
+  const membershipFee = Number(formData.get("membership_fee"));
+  const juniorFee = form.querySelector("[name='junior_membership_fee']") ? Number(formData.get("junior_membership_fee")) : juniorMembershipFee;
   try {
-    await requestSupabase("/rest/v1/club_settings?setting_key=eq.annual_membership_fee", { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ membership_fee: membershipFee, updated_at: new Date().toISOString() }) });
+    await Promise.all([
+      requestSupabase("/rest/v1/club_settings?setting_key=eq.annual_membership_fee", { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ membership_fee: membershipFee, updated_at: new Date().toISOString() }) }),
+      requestSupabase("/rest/v1/club_settings?setting_key=eq.junior_membership_fee", { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ membership_fee: juniorFee, updated_at: new Date().toISOString() }) }),
+    ]);
     annualMembershipFee = membershipFee;
+    juniorMembershipFee = juniorFee;
     await loadClubSettings();
-    status.textContent = "Membership fee saved.";
-  } catch (error) { status.textContent = `Could not save membership fee: ${error.message}`; }
+    status.textContent = "Membership fees saved.";
+  } catch (error) { status.textContent = `Could not save membership fees: ${error.message}`; }
 });
 
 async function loadSharedMedia() {
@@ -404,12 +500,22 @@ loadHomepageMedia();
 
 async function loadAchievedEventsPage() {
   const container = document.querySelector("[data-achieved-event-list]");
+  const yearSummary = document.querySelector("[data-achieved-year-summary]");
   if (!container) return;
   try {
-    const [archived, registrations] = await Promise.all([
+    const calendarYear = new Date().getFullYear();
+    const [archived, registrations, completedEvents] = await Promise.all([
       requestSupabase("/rest/v1/achieved_events?select=*&order=event_date.desc"),
       fetchRegistrations().catch(() => []),
+      requestSupabase(`/rest/v1/events?date=gte.${calendarYear}-01-01&date=lt.${calendarYear + 1}-01-01&select=type,date`).catch(() => []),
     ]);
+    if (yearSummary) {
+      const today = new Date().toISOString().slice(0, 10);
+      const showCount = archived.filter((item) => item.event_date.startsWith(String(calendarYear)) && item.event_data?.type === "show").length;
+      const clubCount = completedEvents.filter((event) => event.type === "club" && event.date < today).length;
+      const clinicCount = completedEvents.filter((event) => event.type === "clinic" && event.date < today).length;
+      yearSummary.innerHTML = `<dl class="show-extra-summary show-overview-summary"><div><dt>${calendarYear} club days</dt><dd>${clubCount}</dd></div><div><dt>${calendarYear} clinics</dt><dd>${clinicCount}</dd></div><div><dt>${calendarYear} shows</dt><dd>${showCount}</dd></div></dl>`;
+    }
     container.innerHTML = archived.length ? `<div class="admin-data-table archived-event-overview-table" role="table"><div role="row" class="admin-table-header"><span role="columnheader">Event</span><span role="columnheader">Date</span><span role="columnheader">Participants</span><span role="columnheader">Entries</span><span role="columnheader">Revenue</span></div>${archived.map((item) => {
       const event = item.event_data || {};
       const results = Array.isArray(item.results) ? item.results : [];
@@ -440,6 +546,11 @@ async function loadArchivedEventPage() {
     if (!archived) throw new Error("Archived event not found");
     const event = archived.event_data || {};
     const results = Array.isArray(archived.results) ? archived.results : [];
+    const pointsDownload = document.querySelector("[data-download-archived-points]");
+    if (pointsDownload && event.type === "show") {
+      pointsDownload.hidden = false;
+      pointsDownload.onclick = () => downloadArchivedPointsCsv(event, results);
+    }
     let registrations = [];
     try {
       registrations = (await fetchRegistrations()).filter((registration) => getRegistrationEventId(registration) === eventId);
@@ -458,7 +569,7 @@ async function loadArchivedEventPage() {
     const revenue = storedSummary.revenue ?? getEventSummary({ registrations }).revenue;
     document.querySelector("[data-archived-event-title]").textContent = event.title || "Archived event";
     document.querySelector("[data-archived-event-summary]").textContent = `${formatDateParts(event.date || archived.event_date).label} | ${results.length} published results`;
-    const classes = [...new Set(results.map((result) => result.class_name))].sort();
+    const classes = sortShowClassNames([...new Set(results.map((result) => result.class_name))]);
     const archivedSummary = `<dl class="show-extra-summary show-overview-summary"><div><dt>Judge</dt><dd>${escapeHTML(event.judge_name || "Not recorded")}</dd></div><div><dt>Participants</dt><dd>${participantTotal}</dd></div><div><dt>Horses</dt><dd>${horseTotal}</dd></div><div><dt>Campers</dt><dd>${camperTotal}</dd></div><div><dt>Day memberships</dt><dd>${dayMembershipTotal}</dd></div><div><dt>Dinner tickets</dt><dd>${dinnerTicketTotal}</dd></div><div><dt>Revenue</dt><dd>${formatCurrency(revenue)}</dd></div></dl>`;
     const cancellationNotice = event.cancelled_at ? `<section class="cancellation-notice"><strong>Cancelled</strong><p>${escapeHTML(event.cancellation_notice || "This event was cancelled.")}</p></section>` : "";
     content.innerHTML = cancellationNotice + archivedSummary + (classes.length ? classes.map((className) => { const classResults = results.filter((result) => result.class_name === className).sort((a, b) => (a.result_place || 999) - (b.result_place || 999)); return `<section class="show-class-panel"><div class="form-heading"><p class="eyebrow">Archived class</p><h2>${escapeHTML(className)}</h2></div><div class="admin-data-table show-class-table" role="table"><div role="row" class="admin-table-header"><span role="columnheader">Rank</span><span role="columnheader">Participant</span><span role="columnheader">Horse</span><span role="columnheader">Points</span><span role="columnheader">Status</span></div>${classResults.map((result) => `<div role="row" class="admin-table-row"><span role="cell">${escapeHTML(String(result.result_place || "—"))}</span><span role="cell">${escapeHTML(result.participant_name)}</span><span role="cell">${escapeHTML(result.horse_name)}</span><span role="cell">${escapeHTML(formatPoints(getShowResultPoints(result)))}</span><span role="cell">${result.scratched ? "Scratched" : "Complete"}</span></div>`).join("")}</div></section>`; }).join("") : '<p class="empty-state">No published class results were stored with this event.</p>');
@@ -466,6 +577,24 @@ async function loadArchivedEventPage() {
 }
 
 loadArchivedEventPage();
+
+function downloadArchivedPointsCsv(event, results) {
+  const csvCell = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  const eventDate = event.date ? formatDateParts(event.date).label : "Not recorded";
+  const rows = [["Event date", "Class", "Entries", "Place", "Rider", "Horse", "Points"]];
+  sortShowClassNames([...new Set(results.map((result) => result.class_name))]).forEach((className) => {
+    const classResults = results.filter((result) => result.class_name === className);
+    classResults.filter((result) => Number(result.result_place) >= 1 && Number(result.result_place) <= 4)
+      .sort((a, b) => Number(a.result_place) - Number(b.result_place))
+      .forEach((result) => rows.push([eventDate, className, classResults.length, result.result_place, result.participant_name, result.horse_name, getShowResultPoints(result)]));
+  });
+  const blob = new Blob([rows.map((row) => row.map(csvCell).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `${String(event.title || "show").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}-points.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
 
 const mediaPhotos = [
   {
@@ -920,6 +1049,311 @@ function formatPoints(points) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+async function loadProfitLossPage() {
+  const page = document.querySelector("[data-pl-report]");
+  const content = document.querySelector("[data-pl-content]");
+  const summary = document.querySelector("[data-pl-summary]");
+  const yearSelect = document.querySelector("[data-pl-financial-year]");
+  if (!page || !content) return;
+  try {
+    const [eventYears, clubYears, otherIncomeYears, membershipYears] = await Promise.all([
+      requestSupabase("/rest/v1/event_pl?select=financial_year"),
+      requestSupabase("/rest/v1/club_expenses?select=financial_year"),
+      requestSupabase("/rest/v1/other_income?select=financial_year"),
+      requestSupabase("/rest/v1/membership_renewals?select=financial_year"),
+    ]);
+    const financialYears = [...new Set([...eventYears, ...clubYears, ...otherIncomeYears, ...membershipYears].map((row) => row.financial_year))].sort().reverse();
+    const fallbackYear = (() => { const date = new Date(); const startYear = date.getMonth() >= 6 ? date.getFullYear() : date.getFullYear() - 1; return `${startYear}-${String((startYear + 1) % 100).padStart(2, "0")}`; })();
+    if (yearSelect && !yearSelect.options.length) {
+      yearSelect.innerHTML = (financialYears.length ? financialYears : [fallbackYear]).map((year) => `<option value="${escapeHTML(year)}">${escapeHTML(year)}</option>`).join("");
+      yearSelect.addEventListener("change", loadProfitLossPage);
+    }
+    const financialYear = yearSelect?.value || financialYears[0] || fallbackYear;
+    const [events, clubExpenses, otherIncome, membershipRenewals] = await Promise.all([
+      requestSupabase(`/rest/v1/event_pl?financial_year=eq.${financialYear}&select=*&order=event_date.desc`),
+      requestSupabase(`/rest/v1/club_expenses?financial_year=eq.${financialYear}&select=*&order=date_incurred.desc`),
+      requestSupabase(`/rest/v1/other_income?financial_year=eq.${financialYear}&select=*&order=date_received.desc`),
+      requestSupabase(`/rest/v1/membership_renewals?financial_year=eq.${financialYear}&paid_at=not.is.null&select=amount`),
+    ]);
+    const income = events.reduce((total, event) => total + Number(event.income || 0), 0);
+    const eventExpenses = events.reduce((total, event) => total + Number(event.expenses || 0), 0);
+    const sharedExpenses = clubExpenses.reduce((total, expense) => total + Number(expense.amount || 0), 0);
+    const otherIncomeTotal = otherIncome.reduce((total, item) => total + Number(item.amount || 0), 0);
+    const membershipIncome = membershipRenewals.reduce((total, renewal) => total + Number(renewal.amount || 0), 0);
+    const totalIncome = income + otherIncomeTotal + membershipIncome;
+    window.currentProfitLoss = { financialYear, events, income: totalIncome, eventExpenses, sharedExpenses };
+    if (summary) summary.textContent = `${financialYear} financial year`;
+    content.innerHTML = `<dl class="show-extra-summary show-overview-summary"><div><dt>Event income</dt><dd>${formatCurrency(income)}</dd></div><div><dt>Membership income</dt><dd>${formatCurrency(membershipIncome)}</dd></div><div><dt>Other income</dt><dd>${formatCurrency(otherIncomeTotal)}</dd></div><div><dt>Event expenses</dt><dd>${formatCurrency(eventExpenses)}</dd></div><div><dt>Club expenses</dt><dd>${formatCurrency(sharedExpenses)}</dd></div><div><dt>Net profit</dt><dd>${formatCurrency(totalIncome - eventExpenses - sharedExpenses)}</dd></div></dl><section class="show-class-panel"><div class="form-heading"><p class="eyebrow">Events</p><h2>Event Profit &amp; Loss</h2></div><div class="admin-data-table" role="table"><div role="row" class="admin-table-header"><span role="columnheader">Event</span><span role="columnheader">Income</span><span role="columnheader">Expenses</span><span role="columnheader">Profit</span></div>${events.map((event) => `<div role="row" class="admin-table-row"><span role="cell"><strong>${escapeHTML(event.title)}</strong><small>${escapeHTML(formatDateParts(event.event_date).label)}</small></span><span role="cell">${formatCurrency(event.income)}</span><span role="cell">${formatCurrency(event.expenses)}</span><span role="cell">${formatCurrency(event.profit)}</span></div>`).join("") || '<p class="empty-state">No events in this financial year yet.</p>'}</div></section>`;
+  } catch (error) { content.innerHTML = '<p class="empty-state">Could not load the Profit &amp; Loss report.</p>'; }
+}
+
+loadProfitLossPage();
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest("[data-pl-pdf]") || !window.currentProfitLoss || !window.jspdf) return;
+  const { financialYear, events, income, eventExpenses, sharedExpenses } = window.currentProfitLoss;
+  const pdf = new window.jspdf.jsPDF();
+  pdf.setFontSize(18); pdf.text("Shoalhaven Extreme Obstacle Racing Club", 14, 18);
+  pdf.setFontSize(14); pdf.text(`Profit & Loss | ${financialYear}`, 14, 27);
+  let y = 40;
+  events.forEach((item) => { pdf.setFontSize(10); pdf.text(`${item.title} | Income ${formatCurrency(item.income)} | Costs ${formatCurrency(item.expenses)} | Profit ${formatCurrency(item.profit)}`, 14, y); y += 8; });
+  y += 6; pdf.setFontSize(12); pdf.text(`Income: ${formatCurrency(income)}   Event costs: ${formatCurrency(eventExpenses)}   Club costs: ${formatCurrency(sharedExpenses)}   Net: ${formatCurrency(income - eventExpenses - sharedExpenses)}`, 14, y);
+  pdf.save(`seorc-profit-loss-${financialYear}.pdf`);
+});
+
+async function loadEventExpensePage() {
+  const form = document.querySelector("[data-event-expense-form]");
+  const select = document.querySelector("[data-expense-event]");
+  const list = document.querySelector("[data-event-expense-list]");
+  if (!form || !select) return;
+  const events = await requestSupabase("/rest/v1/events?select=id,title,date&order=date.desc");
+  select.innerHTML = events.map((event) => `<option value="${escapeHTML(event.id)}">${escapeHTML(event.title)} — ${escapeHTML(event.date)}</option>`).join("");
+  form.querySelector("[name='date_incurred']").value = new Date().toISOString().slice(0, 10);
+  const renderExpenses = async () => {
+    if (!list || !select.value) return;
+    const expenses = await requestSupabase(`/rest/v1/event_expenses?event_id=eq.${encodeURIComponent(select.value)}&select=*&order=date_incurred.desc`);
+    const total = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    list.innerHTML = `<div class="admin-data-table" role="table"><div role="row" class="admin-table-header"><span role="columnheader">Description</span><span role="columnheader">Date</span><span role="columnheader">Amount</span><span role="columnheader">Action</span></div>${expenses.map((expense) => `<div role="row" class="admin-table-row"><span role="cell">${escapeHTML(expense.description)}</span><span role="cell">${escapeHTML(formatDateParts(expense.date_incurred).label)}</span><span role="cell">${formatCurrency(expense.amount)}</span><span role="cell"><button class="button secondary compact-button" type="button" data-delete-pl-entry="event_expenses" data-entry-id="${escapeHTML(expense.id)}">Remove</button></span></div>`).join("") || '<p class="empty-state">No costs recorded for this event.</p>'}</div><p class="field-note"><strong>Total costs: ${formatCurrency(total)}</strong></p>`;
+  };
+  select.addEventListener("change", renderExpenses);
+  form.addEventListener("submit", async (event) => { event.preventDefault(); const status = form.querySelector("[data-expense-status]"); const data = Object.fromEntries(new FormData(form)); try { await requestSupabase("/rest/v1/event_expenses", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ...data, amount: Number(data.amount) }) }); form.querySelector("[name='description']").value = ""; form.querySelector("[name='amount']").value = ""; status.textContent = "Cost saved."; await renderExpenses(); } catch (error) { status.textContent = `Could not save cost: ${error.message}`; } });
+  await renderExpenses();
+}
+
+loadEventExpensePage();
+
+async function loadClubExpensePage() {
+  const form = document.querySelector("[data-club-expense-form]");
+  const list = document.querySelector("[data-club-expense-list]");
+  if (!form || !list) return;
+  const today = new Date();
+  const startYear = today.getMonth() >= 6 ? today.getFullYear() : today.getFullYear() - 1;
+  const financialYear = `${startYear}-${String((startYear + 1) % 100).padStart(2, "0")}`;
+  form.querySelector("[name='date_incurred']").value = today.toISOString().slice(0, 10);
+  const renderCosts = async () => {
+    const costs = await requestSupabase(`/rest/v1/club_expenses?financial_year=eq.${financialYear}&select=*&order=date_incurred.desc`);
+    const total = costs.reduce((sum, cost) => sum + Number(cost.amount || 0), 0);
+    list.innerHTML = `<div class="admin-data-table" role="table"><div role="row" class="admin-table-header"><span role="columnheader">Description</span><span role="columnheader">Date</span><span role="columnheader">Amount</span><span role="columnheader">Action</span></div>${costs.map((cost) => `<div role="row" class="admin-table-row"><span role="cell">${escapeHTML(cost.description)}</span><span role="cell">${escapeHTML(formatDateParts(cost.date_incurred).label)}</span><span role="cell">${formatCurrency(cost.amount)}</span><span role="cell"><button class="button secondary compact-button" type="button" data-delete-pl-entry="club_expenses" data-entry-id="${escapeHTML(cost.id)}">Remove</button></span></div>`).join("") || '<p class="empty-state">No shared club costs recorded for this financial year.</p>'}</div><p class="field-note"><strong>Total club costs: ${formatCurrency(total)}</strong></p>`;
+  };
+  form.addEventListener("submit", async (event) => { event.preventDefault(); const status = form.querySelector("[data-club-expense-status]"); const data = Object.fromEntries(new FormData(form)); try { await requestSupabase("/rest/v1/club_expenses", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ...data, amount: Number(data.amount), financial_year: financialYear }) }); form.querySelector("[name='description']").value = ""; form.querySelector("[name='amount']").value = ""; status.textContent = "Club cost saved."; await renderCosts(); } catch (error) { status.textContent = `Could not save club cost: ${error.message}`; } });
+  await renderCosts();
+}
+
+loadClubExpensePage();
+
+async function loadPastProfitLossPage() {
+  const list = document.querySelector("[data-past-pl-list]");
+  if (!list) return;
+  try {
+    const archives = await requestSupabase("/rest/v1/financial_year_pl_archives?select=*&order=financial_year.desc");
+    list.innerHTML = archives.length ? `<div class="admin-data-table" role="table"><div role="row" class="admin-table-header"><span role="columnheader">Financial year</span><span role="columnheader">Net profit</span><span role="columnheader">Download</span></div>${archives.map((archive) => { const r = archive.report || {}; const net = Number(r.event_income || 0) + Number(r.membership_income || 0) + Number(r.other_income || 0) - Number(r.event_expenses || 0) - Number(r.club_expenses || 0); return `<div role="row" class="admin-table-row"><span role="cell"><strong>${escapeHTML(archive.financial_year)}</strong></span><span role="cell">${formatCurrency(net)}</span><span role="cell"><button class="button secondary form-submit" type="button" data-download-past-pl='${escapeHTML(JSON.stringify(archive).replace(/'/g, "&#39;"))}'>Download PDF</button></span></div>`; }).join("")}</div>` : '<p class="empty-state">No completed financial-year P&amp;L reports have been archived yet.</p>';
+  } catch (error) { list.innerHTML = '<p class="empty-state">Could not load past P&amp;L reports.</p>'; }
+}
+loadPastProfitLossPage();
+
+async function loadOtherIncomePage() {
+  const form = document.querySelector("[data-other-income-form]"); const list = document.querySelector("[data-other-income-list]");
+  if (!form || !list) return;
+  const now = new Date(); const start = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1; const fy = `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
+  form.querySelector("[name='date_received']").value = now.toISOString().slice(0, 10);
+  const render = async () => { const rows = await requestSupabase(`/rest/v1/other_income?financial_year=eq.${fy}&select=*&order=date_received.desc`); const total = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0); list.innerHTML = `<div class="admin-data-table" role="table"><div role="row" class="admin-table-header"><span role="columnheader">Description</span><span role="columnheader">Date</span><span role="columnheader">Amount</span><span role="columnheader">Action</span></div>${rows.map((row) => `<div role="row" class="admin-table-row"><span role="cell">${escapeHTML(row.description)}</span><span role="cell">${escapeHTML(formatDateParts(row.date_received).label)}</span><span role="cell">${formatCurrency(row.amount)}</span><span role="cell"><button class="button secondary compact-button" type="button" data-delete-pl-entry="other_income" data-entry-id="${escapeHTML(row.id)}">Remove</button></span></div>`).join("") || '<p class="empty-state">No other income recorded for this financial year.</p>'}</div><p class="field-note"><strong>Total other income: ${formatCurrency(total)}</strong></p>`; };
+  form.addEventListener("submit", async (event) => { event.preventDefault(); const status = form.querySelector("[data-other-income-status]"); const data = Object.fromEntries(new FormData(form)); try { await requestSupabase("/rest/v1/other_income", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ ...data, amount: Number(data.amount), financial_year: fy }) }); form.querySelector("[name='description']").value = ""; form.querySelector("[name='amount']").value = ""; status.textContent = "Income saved."; await render(); } catch (error) { status.textContent = `Could not save income: ${error.message}`; } });
+  await render();
+}
+loadOtherIncomePage();
+
+async function loadMembershipRenewalsPage() {
+  const container = document.querySelector("[data-membership-renewals]"); if (!container) return;
+  try {
+    const members = await requestSupabase("/rest/v1/members?select=*,membership_renewals(id,financial_year,amount,membership_type,paid_at,created_at)&order=last_name.asc,first_name.asc");
+    container.innerHTML = members.length ? `<div class="admin-data-table memberships-table" role="table"><div role="row" class="admin-table-header"><span>Member</span><span>Membership number</span><span>Contact</span><span>Type</span><span>Riding level</span><span>Renewal</span><span>Payment</span></div>${members.flatMap((member) => {
+      const renewals = [...(member.membership_renewals || [])].sort((a, b) => String(b.financial_year).localeCompare(String(a.financial_year)));
+      const rows = renewals.length ? renewals : [null];
+      return rows.map((renewal, index) => `<div role="row" class="admin-table-row"><span role="cell">${index === 0 ? `<a class="admin-table-title-link" href="membership-detail.html?member=${encodeURIComponent(member.id)}"><strong>${escapeHTML(`${member.first_name} ${member.last_name}`)}</strong></a>` : ""}</span><span role="cell">${index === 0 ? escapeHTML(member.membership_number) : ""}</span><span role="cell">${index === 0 ? `${escapeHTML(member.email)}<small>${escapeHTML(member.phone || "No phone supplied")}</small>` : ""}</span><span role="cell">${escapeHTML(humanizeFieldName(renewal?.membership_type || member.membership_type || "adult"))}</span><span role="cell">${index === 0 ? escapeHTML(member.riding_level || "Not supplied") : ""}</span><span role="cell">${renewal ? `${escapeHTML(renewal.financial_year)}<small>${formatCurrency(renewal.amount)}</small>` : "No renewal yet"}</span><span role="cell">${renewal ? (renewal.paid_at ? `<button class="button secondary compact-button" data-mark-membership-unpaid="${renewal.id}">Undo paid</button>` : `<button class="button secondary form-submit" data-mark-membership-paid="${renewal.id}">Mark paid</button>`) : ""}</span></div>`);
+    }).join("")}</div>` : '<p class="empty-state">No members have registered yet.</p>';
+  } catch (error) { container.innerHTML = '<p class="empty-state">Could not load memberships.</p>'; }
+}
+loadMembershipRenewalsPage();
+document.addEventListener("click", async (event) => { const button = event.target.closest("[data-mark-membership-paid]"); if (!button) return; await requestSupabase(`/rest/v1/membership_renewals?id=eq.${encodeURIComponent(button.dataset.markMembershipPaid)}`, { method: "PATCH", body: JSON.stringify({ paid_at: new Date().toISOString() }) }); await loadMembershipRenewalsPage(); });
+
+document.addEventListener("click", async (event) => { const button = event.target.closest("[data-mark-membership-unpaid]"); if (!button || !window.confirm("Mark this membership renewal as unpaid?")) return; await requestSupabase(`/rest/v1/membership_renewals?id=eq.${encodeURIComponent(button.dataset.markMembershipUnpaid)}`, { method: "PATCH", body: JSON.stringify({ paid_at: null }) }); await loadMembershipRenewalsPage(); });
+
+function memberDetailLine(label, value) {
+  return `<div><dt>${escapeHTML(label)}</dt><dd>${escapeHTML(value || "Not supplied")}</dd></div>`;
+}
+
+function getCurrentMembershipRenewal(member) {
+  return [...(member?.membership_renewals || [])].sort((a, b) => String(b.financial_year).localeCompare(String(a.financial_year)))[0] || null;
+}
+
+function renderMembershipDetail(member) {
+  const container = document.querySelector("[data-member-detail]");
+  const title = document.querySelector("[data-member-detail-title]");
+  const summary = document.querySelector("[data-member-detail-summary]");
+  if (!container) return;
+  const renewal = getCurrentMembershipRenewal(member);
+  const memberName = `${member.first_name || ""} ${member.last_name || ""}`.trim() || "Member";
+  if (title) title.textContent = memberName;
+  if (summary) summary.textContent = `${member.membership_number} | ${humanizeFieldName(member.membership_type || "adult")} member`;
+  const emergencyName = [member.emergency_first_name, member.emergency_last_name].filter(Boolean).join(" ");
+  container.innerHTML = `
+    <div class="admin-actions">
+      <a class="button secondary form-submit" href="memberships.html">Back to Memberships</a>
+      <button class="button primary form-submit" type="button" data-edit-member-detail>Edit details</button>
+      ${renewal ? (renewal.paid_at ? `<button class="button secondary form-submit" type="button" data-member-detail-unpaid="${escapeHTML(renewal.id)}">Mark unpaid</button>` : `<button class="button secondary form-submit" type="button" data-member-detail-paid="${escapeHTML(renewal.id)}">Mark paid</button>`) : ""}
+      <button class="button secondary form-submit" type="button" data-delete-member="${escapeHTML(member.id)}">Delete member</button>
+    </div>
+    <section class="show-class-panel">
+      <div class="form-heading">
+        <p class="eyebrow">Membership details</p>
+        <h2>${escapeHTML(member.membership_number)}</h2>
+      </div>
+      <dl class="show-extra-summary member-detail-summary">
+        ${memberDetailLine("Membership type", humanizeFieldName(member.membership_type || "adult"))}
+        ${memberDetailLine("Current renewal", renewal ? `${renewal.financial_year} · ${formatCurrency(renewal.amount)} · ${renewal.paid_at ? "Paid" : "Unpaid"}` : "No renewal recorded")}
+        ${memberDetailLine("Email", member.email)}
+        ${memberDetailLine("Phone", member.phone)}
+        ${memberDetailLine("Birthday", member.birthday ? formatDateParts(member.birthday).label : "")}
+        ${memberDetailLine("Address", member.address)}
+        ${memberDetailLine("Riding level", member.riding_level)}
+        ${memberDetailLine("Horse level", member.horse_level)}
+        ${memberDetailLine("Emergency contact", emergencyName)}
+        ${memberDetailLine("Emergency phone", member.emergency_phone)}
+        ${memberDetailLine("Email notifications", member.email_notifications ? "Yes" : "No")}
+      </dl>
+    </section>
+    <form class="form-panel" data-member-detail-form data-member-id="${escapeHTML(member.id)}" hidden>
+      <div class="form-heading"><p class="eyebrow">Edit member</p><h2>Update membership details</h2></div>
+      <div class="form-grid">
+        <label>Membership type<select name="membership_type"><option value="adult"${member.membership_type === "adult" ? " selected" : ""}>Adult</option><option value="junior"${member.membership_type === "junior" ? " selected" : ""}>Junior</option></select></label>
+        <label>First name<input name="first_name" value="${escapeHTML(member.first_name || "")}" required></label>
+        <label>Last name<input name="last_name" value="${escapeHTML(member.last_name || "")}" required></label>
+        <label>Email<input name="email" type="email" value="${escapeHTML(member.email || "")}" required></label>
+        <label>Phone<input name="phone" type="tel" value="${escapeHTML(member.phone || "")}"></label>
+        <label>Birthday<input name="birthday" type="date" value="${escapeHTML(member.birthday || "")}"></label>
+        <label>Address<input name="address" value="${escapeHTML(member.address || "")}"></label>
+        <label>Riding level<select name="riding_level"><option value="">Not supplied</option>${["Professional", "Experienced", "Intermediate", "Novice"].map((level) => `<option value="${level}"${member.riding_level === level ? " selected" : ""}>${level}</option>`).join("")}</select></label>
+        <label>Horse level<select name="horse_level"><option value="">Not supplied</option>${["Experienced", "Novice", "Green"].map((level) => `<option value="${level}"${member.horse_level === level ? " selected" : ""}>${level}</option>`).join("")}</select></label>
+        <label>Emergency first name<input name="emergency_first_name" value="${escapeHTML(member.emergency_first_name || "")}"></label>
+        <label>Emergency last name<input name="emergency_last_name" value="${escapeHTML(member.emergency_last_name || "")}"></label>
+        <label>Emergency phone<input name="emergency_phone" type="tel" value="${escapeHTML(member.emergency_phone || "")}"></label>
+      </div>
+      <label class="check-row"><input name="email_notifications" type="checkbox"${member.email_notifications ? " checked" : ""}><span>Email notifications</span></label>
+      <div class="admin-actions"><button class="button primary form-submit" type="submit">Save member details</button><button class="button secondary form-submit" type="button" data-cancel-member-detail-edit>Cancel</button></div>
+      <p class="form-status" data-member-detail-status></p>
+    </form>
+  `;
+}
+
+async function loadMembershipDetailPage() {
+  const container = document.querySelector("[data-member-detail]");
+  if (!container) return;
+  const memberId = new URLSearchParams(window.location.search).get("member");
+  if (!memberId) {
+    container.innerHTML = '<p class="empty-state">No member was selected.</p>';
+    return;
+  }
+  try {
+    const rows = await requestSupabase(`/rest/v1/members?id=eq.${encodeURIComponent(memberId)}&select=*,membership_renewals(id,financial_year,amount,membership_type,paid_at,created_at,registration_id)`);
+    const member = rows[0];
+    if (!member) throw new Error("Member not found");
+    renderMembershipDetail(member);
+  } catch (error) {
+    container.innerHTML = `<p class="empty-state">Could not load member details: ${escapeHTML(error.message)}</p>`;
+  }
+}
+
+loadMembershipDetailPage();
+
+document.addEventListener("click", async (event) => {
+  const editButton = event.target.closest("[data-edit-member-detail]");
+  if (editButton) {
+    document.querySelector("[data-member-detail-form]")?.removeAttribute("hidden");
+    editButton.setAttribute("hidden", "");
+    return;
+  }
+  const cancelButton = event.target.closest("[data-cancel-member-detail-edit]");
+  if (cancelButton) {
+    document.querySelector("[data-member-detail-form]")?.setAttribute("hidden", "");
+    document.querySelector("[data-edit-member-detail]")?.removeAttribute("hidden");
+    return;
+  }
+  const paidButton = event.target.closest("[data-member-detail-paid]");
+  if (paidButton) {
+    await requestSupabase(`/rest/v1/membership_renewals?id=eq.${encodeURIComponent(paidButton.dataset.memberDetailPaid)}`, { method: "PATCH", body: JSON.stringify({ paid_at: new Date().toISOString() }) });
+    await loadMembershipDetailPage();
+    return;
+  }
+  const unpaidButton = event.target.closest("[data-member-detail-unpaid]");
+  if (unpaidButton) {
+    if (!window.confirm("Mark this membership renewal as unpaid?")) return;
+    await requestSupabase(`/rest/v1/membership_renewals?id=eq.${encodeURIComponent(unpaidButton.dataset.memberDetailUnpaid)}`, { method: "PATCH", body: JSON.stringify({ paid_at: null }) });
+    await loadMembershipDetailPage();
+    return;
+  }
+  const deleteButton = event.target.closest("[data-delete-member]");
+  if (deleteButton) {
+    if (!window.confirm("Delete this member from the membership list? Historical form submissions will remain.")) return;
+    await requestSupabase(`/rest/v1/members?id=eq.${encodeURIComponent(deleteButton.dataset.deleteMember)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+    window.location.href = "memberships.html";
+  }
+});
+
+document.addEventListener("submit", async (event) => {
+  const form = event.target.closest("[data-member-detail-form]");
+  if (!form) return;
+  event.preventDefault();
+  const status = form.querySelector("[data-member-detail-status]");
+  const formData = new FormData(form);
+  const body = {
+    membership_type: String(formData.get("membership_type") || "adult"),
+    first_name: String(formData.get("first_name") || "").trim(),
+    last_name: String(formData.get("last_name") || "").trim(),
+    email: String(formData.get("email") || "").trim().toLowerCase(),
+    phone: String(formData.get("phone") || "").trim() || null,
+    birthday: String(formData.get("birthday") || "").trim() || null,
+    address: String(formData.get("address") || "").trim() || null,
+    riding_level: String(formData.get("riding_level") || "").trim() || null,
+    horse_level: String(formData.get("horse_level") || "").trim() || null,
+    emergency_first_name: String(formData.get("emergency_first_name") || "").trim() || null,
+    emergency_last_name: String(formData.get("emergency_last_name") || "").trim() || null,
+    emergency_phone: String(formData.get("emergency_phone") || "").trim() || null,
+    email_notifications: formData.get("email_notifications") === "on",
+    updated_at: new Date().toISOString(),
+  };
+  try {
+    await requestSupabase(`/rest/v1/members?id=eq.${encodeURIComponent(form.dataset.memberId)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
+    if (status) status.textContent = "Member details saved.";
+    await loadMembershipDetailPage();
+  } catch (error) {
+    if (status) status.textContent = `Could not save member: ${error.message}`;
+  }
+});
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-delete-pl-entry]");
+  if (!button || !window.confirm("Remove this financial entry? This cannot be undone.")) return;
+  const table = button.dataset.deletePlEntry;
+  if (!["event_expenses", "club_expenses", "other_income"].includes(table)) return;
+  try {
+    await requestSupabase(`/rest/v1/${table}?id=eq.${encodeURIComponent(button.dataset.entryId)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+    window.location.reload();
+  } catch (error) { alert(`Could not remove this entry: ${error.message}`); }
+});
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-download-past-pl]");
+  if (!button || !window.jspdf) return;
+  const archive = JSON.parse(button.dataset.downloadPastPl);
+  const report = archive.report || {}; const pdf = new window.jspdf.jsPDF();
+  pdf.setFontSize(18); pdf.text("Shoalhaven Extreme Obstacle Racing Club", 14, 18);
+  pdf.setFontSize(14); pdf.text(`Profit & Loss | ${archive.financial_year}`, 14, 28);
+  let y = 42; (report.events || []).forEach((item) => { pdf.setFontSize(10); pdf.text(`${item.title} | Income ${formatCurrency(item.income)} | Costs ${formatCurrency(item.expenses)} | Profit ${formatCurrency(item.profit)}`, 14, y); y += 8; });
+  const totalIncome = Number(report.event_income || 0) + Number(report.membership_income || 0) + Number(report.other_income || 0);
+  pdf.setFontSize(12); pdf.text(`Income: ${formatCurrency(totalIncome)}   Event costs: ${formatCurrency(report.event_expenses)}   Club costs: ${formatCurrency(report.club_expenses)}`, 14, y + 8);
+  pdf.save(`seorc-profit-loss-${archive.financial_year}.pdf`);
+});
+
 function aggregateAnnualPoints(results, year) {
   const countedResults = results.filter((result) => {
     const resultYear = getShowResultYear(result);
@@ -982,6 +1416,7 @@ function renderAnnualPointsTable(rows, type) {
     return '<p class="empty-state">No processed show results have been counted for this calendar year yet.</p>';
   }
 
+  const topTen = rows.slice(0, 10);
   let previousPoints = null;
   let previousRank = 0;
 
@@ -996,7 +1431,7 @@ function renderAnnualPointsTable(rows, type) {
         <span role="columnheader">Entries</span>
         <span role="columnheader">Events</span>
       </div>
-      ${rows
+      ${topTen
         .map((row, index) => {
           const rank = row.points === previousPoints ? previousRank : index + 1;
           previousPoints = row.points;
@@ -1039,7 +1474,7 @@ async function loadPointsPage() {
     document.querySelector("[data-points-result-count]").textContent = String(annualPoints.countedResults.length);
 
     if (summary) {
-      summary.textContent = `${annualPoints.countedResults.length} processed results counted for ${year}.`;
+      summary.textContent = `${annualPoints.countedResults.length} processed paid-member results counted for ${year}.`;
     }
 
     if (riderPoints) {
@@ -1085,6 +1520,7 @@ function isShowJudgingComplete(eventId, registrations, results) {
 
 function renderEventEditForm(event, judgingComplete = false) {
   if (event.id === "club-members") return "";
+  const isExternal = event.type.startsWith("external-");
 
   return `
     <form class="form-panel event-edit-form" data-event-edit-form data-event-id="${escapeHTML(event.id)}">
@@ -1110,10 +1546,10 @@ function renderEventEditForm(event, judgingComplete = false) {
         Description
         <textarea name="description" rows="4">${escapeHTML(event.description || "")}</textarea>
       </label>
-      ${event.type.startsWith("external-") ? `<div class="form-grid"><label>Provider link<input name="provider_url" type="url" value="${escapeHTML(event.event_settings?.provider_url || "")}" required></label><label>Cost<input name="external_cost" type="text" value="${escapeHTML(event.event_settings?.external_cost || "")}" placeholder="e.g. $45, see provider" required></label></div>` : ""}
+      ${isExternal ? `<div class="form-grid"><label>Provider link<input name="provider_url" type="url" value="${escapeHTML(event.event_settings?.provider_url || "")}" required></label><label>Cost<input name="external_cost" type="text" value="${escapeHTML(event.event_settings?.external_cost || "")}" placeholder="e.g. $45, see provider" required></label></div>` : ""}
       <div class="admin-actions">
         <button class="button primary form-submit" type="submit">Save Event Details</button>
-        <button class="button secondary form-submit" type="button" data-cancel-event data-event-id="${escapeHTML(event.id)}" data-event-title="${escapeHTML(event.title)}">Cancel &amp; notify attendees</button>
+        ${isExternal ? `<button class="button secondary form-submit" type="button" data-delete-shared-event="${escapeHTML(event.id)}">Delete listing</button>` : `<button class="button secondary form-submit" type="button" data-cancel-event data-event-id="${escapeHTML(event.id)}" data-event-title="${escapeHTML(event.title)}">Cancel &amp; notify attendees</button>`}
         ${event.type === "show" ? `<button class="button primary form-submit" type="button" data-publish-event-results data-event-id="${escapeHTML(event.id)}"${judgingComplete ? "" : " disabled"}>${judgingComplete ? "Publish Scores" : "Scores to be completed"}</button>` : ""}
       </div>
       <p class="form-status" data-event-edit-status hidden></p>
@@ -1128,7 +1564,7 @@ function renderEventPricingForm(event) {
     ? `<label>Club day fee<input name="club_day_fee" type="number" min="0" step="0.01" value="${Number(settings.club_day_fee ?? defaultClubDayFee)}"></label>`
     : event.type === "clinic"
       ? `<label>Clinic fee<input name="clinic_fee" type="number" min="0" step="0.01" value="${Number(settings.clinic_fee ?? defaultClinicFee)}"></label>`
-    : `<fieldset class="pricing-section"><legend>Dinner</legend><div class="form-grid"><label>Dinner ticket price<input name="dinner_price" type="number" min="0" step="0.01" value="${Number(settings.dinner_price ?? 30)}"></label><label>Dinner vendor link<input name="dinner_vendor_url" type="url" value="${escapeHTML(settings.dinner_vendor_url || "")}" placeholder="https://..."></label><label>Custom dinner information<textarea name="custom_information" rows="4" placeholder="Information shown in the dinner section">${escapeHTML(settings.custom_information || "")}</textarea></label></div></fieldset><fieldset class="pricing-section"><legend>Camping and yards</legend><div class="form-grid"><label>Camping with power / night<input name="powered_camping_price" type="number" min="0" step="0.01" value="${Number(settings.powered_camping_price ?? 30)}"></label><label>Camping without power / night<input name="unpowered_camping_price" type="number" min="0" step="0.01" value="${Number(settings.unpowered_camping_price ?? 20)}"></label><label>Yard price<input name="yard_price" type="number" min="0" step="0.01" value="${Number(settings.yard_price ?? 5)}"></label></div></fieldset><fieldset class="pricing-section"><legend>Classes</legend><div class="form-grid">${showClassSlugs.map((slug) => `<label>${humanizeFieldName(slug)} class<input name="class_${slug}" type="number" min="0" step="0.01" value="${Number(settings.class_prices?.[slug] ?? (slug === "open" || slug === "limited-open" || slug === "amateur" || slug === "masters" ? 30 : slug === "junior" || slug === "young-rider" ? 20 : 25))}"></label>`).join("")}</div></fieldset>`;
+    : `<fieldset class="pricing-section"><legend>Dinner</legend><div class="form-grid"><label>Dinner ticket price<input name="dinner_price" type="number" min="0" step="0.01" value="${Number(settings.dinner_price ?? 30)}"></label><label>Dinner vendor link<input name="dinner_vendor_url" type="url" value="${escapeHTML(settings.dinner_vendor_url || "")}" placeholder="https://..."></label><label>Custom dinner information<textarea name="custom_information" rows="4" placeholder="Information shown in the dinner section">${escapeHTML(settings.custom_information || "")}</textarea></label></div></fieldset><fieldset class="pricing-section"><legend>Camping and yards</legend><div class="form-grid"><label>Camping with power / night<input name="powered_camping_price" type="number" min="0" step="0.01" value="${Number(settings.powered_camping_price ?? 30)}"></label><label>Camping without power / night<input name="unpowered_camping_price" type="number" min="0" step="0.01" value="${Number(settings.unpowered_camping_price ?? 20)}"></label><label>Yard price<input name="yard_price" type="number" min="0" step="0.01" value="${Number(settings.yard_price ?? 5)}"></label></div></fieldset><fieldset class="pricing-section"><legend>Classes</legend><div class="form-grid">${showClassSlugs.map((slug) => `<label>${humanizeFieldName(slug)} class<input name="class_${slug}" type="number" min="0" step="0.01" value="${Number(settings.class_prices?.[slug] ?? getDefaultShowClassPrice(slug))}"></label>`).join("")}</div></fieldset>`;
   const pricingName = event.type === "show" ? "Show pricing" : event.type === "clinic" ? "Clinic pricing" : "Club day pricing";
   return `<details class="collapsible-admin-panel"><summary>${event.type === "show" ? "Show pricing and participant information" : pricingName}</summary><form class="form-panel" data-event-pricing-form data-event-id="${escapeHTML(event.id)}"><div class="form-heading"><p class="eyebrow">${pricingName}</p><h2>Participant options</h2></div>${event.type === "show" ? fields : `<div class="form-grid">${fields}</div>`}<button class="button primary form-submit" type="submit">Save prices and information</button><p class="form-status" data-event-pricing-status></p></form></details>`;
 }
@@ -1219,7 +1655,7 @@ function renderClinicDetail(group) {
 
 function renderShowDetail(eventId, group, results = []) {
   const classGroups = getShowClassGroupsWithResults(eventId, group.registrations, results);
-  const classNames = Object.keys(classGroups).sort();
+  const classNames = sortShowClassNames(Object.keys(classGroups));
   const processedClasses = new Set(results.filter((result) => result.event_id === eventId && result.processed_at).map((result) => result.class_name));
   const classEntryTotal = Object.values(classGroups).reduce((total, entries) => total + entries.length, 0);
   const manualEntryTotal = Object.values(classGroups).flat().filter((entry) => entry.isManual).length;
@@ -1473,6 +1909,10 @@ function renderEventPage(registrations) {
   const group = groups[eventId] || { event: getEventDetails(eventId), registrations: [] };
   const summary = getEventSummary(group);
   const dateLabel = group.event.date ? formatDateParts(group.event.date).label : "Not dated";
+  const showClassGroups = group.event.type === "show" ? getShowClassGroupsWithResults(eventId, group.registrations, showResults) : null;
+  const showEntryCount = showClassGroups ? Object.values(showClassGroups).reduce((total, entries) => total + entries.length, 0) : 0;
+  const showHorseCount = group.event.type === "show" ? getShowHorseCount(group.registrations) + Object.values(showClassGroups).flat().filter((entry) => entry.isManual).length : 0;
+  const showRiderCount = group.event.type === "show" ? new Set(group.registrations.map(getParticipantName).filter(Boolean)).size : 0;
 
   const isMemberPage = eventId === "club-members";
   title.textContent = group.event.title;
@@ -1491,7 +1931,7 @@ function renderEventPage(registrations) {
   } else if (group.event.type === "clinic") {
     detailContent = renderClinicDetail(group);
   } else if (group.event.type.startsWith("external-")) {
-    detailContent = `<section class="show-class-panel"><div class="form-heading"><p class="eyebrow">Calendar listing</p><h2>External provider event</h2><p>This event is listed for club members only; registrations are managed by the provider.</p>${group.event.event_settings?.provider_url ? `<p><a class="text-link" href="${escapeHTML(group.event.event_settings.provider_url)}" target="_blank" rel="noopener">Open provider details</a></p>` : ""}</div></section>`;
+    detailContent = "";
   } else {
     detailContent = renderClubDayDetail(group);
   }
@@ -1504,7 +1944,12 @@ function renderEventPage(registrations) {
           <h3>${escapeHTML(group.event.title)}</h3>
           <p>${isMemberPage ? "Member records for the current calendar year." : `${escapeHTML(dateLabel)} at ${locationMapLink(group.event.location)}`}</p>
         </div>
-        ${isMemberPage || group.event.type === "show" || group.event.type.startsWith("external-") ? "" : `<dl class="event-detail-stats">
+        ${group.event.type === "show" ? `<dl class="event-detail-stats">
+          <div><dt>Riders</dt><dd>${showRiderCount}</dd></div>
+          <div><dt>Entries</dt><dd>${showEntryCount}</dd></div>
+          <div><dt>Horses</dt><dd>${showHorseCount}</dd></div>
+          <div><dt>Revenue</dt><dd>${formatCurrency(summary.revenue)}</dd></div>
+        </dl>` : isMemberPage || group.event.type.startsWith("external-") ? "" : `<dl class="event-detail-stats">
           <div>
             <dt>Coming</dt>
             <dd>${summary.attendees}</dd>
@@ -1596,7 +2041,7 @@ document.addEventListener("click", async (event) => {
     const addHeader = (heading) => { pdf.setFillColor(...templateBrown); pdf.rect(margin, y, 182, 15, "F"); if (logoData) pdf.addImage(logoData, "PNG", margin + 3, y + 1.5, 12, 12); pdf.setTextColor(245, 239, 226); pdf.setFont("helvetica", "bold"); pdf.setFontSize(14); pdf.text("SEORC SHOW", margin + 19, y + 6.5); pdf.setFontSize(9); pdf.text(heading.toUpperCase(), margin + 19, y + 11.5); pdf.setTextColor(43, 37, 32); pdf.setFont("helvetica", "normal"); pdf.setFontSize(9); pdf.text(`${group.event.title} | ${formatDateParts(group.event.date).label} | ${group.event.location}`, margin, y + 21); y += 29; };
     addHeader("Run sheets");
     const classes = getShowClassGroupsWithResults(eventId, group.registrations, results);
-    Object.keys(classes).sort().forEach((className) => { const entries = classes[className]; for (let start = 0; start < entries.length; start += 20) { const run = entries.slice(start, start + 20); const tableHeight = 17 + run.length * 8; if (y + tableHeight > 278) { pdf.addPage(); y = 16; addHeader("Run sheets"); } pdf.setFillColor(...templateGold); pdf.rect(margin, y, 182, 8, "F"); pdf.setTextColor(43, 37, 32); pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); pdf.text(`${className}${entries.length > 20 ? ` - ${start + 1}-${Math.min(start + 20, entries.length)}` : ""}`, margin + 4, y + 5.3); y += 8; pdf.setFillColor(245, 239, 226); pdf.rect(margin, y, 182, 9, "F"); pdf.setDrawColor(...templateLine); pdf.rect(margin, y, 182, 9 + run.length * 8); [margin + 24, margin + 105].forEach((x) => pdf.line(x, y, x, y + 9 + run.length * 8)); pdf.setFontSize(9); pdf.text("ORDER", margin + 4, y + 5.8); pdf.text("RIDER NAME", margin + 29, y + 5.8); pdf.text("HORSE NAME", margin + 110, y + 5.8); y += 9; pdf.setFont("helvetica", "normal"); run.forEach((entry, index) => { pdf.line(margin, y + 8, 196, y + 8); pdf.text(String(start + index + 1), margin + 8, y + 5.4); pdf.text(String(entry.participant).slice(0, 34), margin + 29, y + 5.4); pdf.text(String(entry.horseName).slice(0, 34), margin + 110, y + 5.4); y += 8; }); y += 8; } });
+    sortShowClassNames(Object.keys(classes)).forEach((className) => { const entries = classes[className]; for (let start = 0; start < entries.length; start += 20) { const run = entries.slice(start, start + 20); const tableHeight = 17 + run.length * 8; if (y + tableHeight > 278) { pdf.addPage(); y = 16; addHeader("Run sheets"); } pdf.setFillColor(...templateGold); pdf.rect(margin, y, 182, 8, "F"); pdf.setTextColor(43, 37, 32); pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); pdf.text(`${className}${entries.length > 20 ? ` - ${start + 1}-${Math.min(start + 20, entries.length)}` : ""}`, margin + 4, y + 5.3); y += 8; pdf.setFillColor(245, 239, 226); pdf.rect(margin, y, 182, 9, "F"); pdf.setDrawColor(...templateLine); pdf.rect(margin, y, 182, 9 + run.length * 8); [margin + 24, margin + 105].forEach((x) => pdf.line(x, y, x, y + 9 + run.length * 8)); pdf.setFontSize(9); pdf.text("ORDER", margin + 4, y + 5.8); pdf.text("RIDER NAME", margin + 29, y + 5.8); pdf.text("HORSE NAME", margin + 110, y + 5.8); y += 9; pdf.setFont("helvetica", "normal"); run.forEach((entry, index) => { pdf.line(margin, y + 8, 196, y + 8); pdf.text(String(start + index + 1), margin + 8, y + 5.4); pdf.text(String(entry.participant).slice(0, 34), margin + 29, y + 5.4); pdf.text(String(entry.horseName).slice(0, 34), margin + 110, y + 5.4); y += 8; }); y += 8; } });
     pdf.addPage(); y = 16; addHeader("Day memberships required");
     const phone = (registration) => registration.payload?.["participant-phone"] || registration.payload?.["clinic-phone"] || "Not supplied";
     const drawListHeader = (labels, columns, offsets = []) => { pdf.setFillColor(...templateGold); pdf.rect(margin, y, 182, 9, "F"); pdf.setFont("helvetica", "bold"); pdf.setFontSize(9); labels.forEach((label, index) => pdf.text(label, columns[index] + (offsets[index] ?? 4), y + 5.8)); y += 9; };
@@ -1679,7 +2124,7 @@ function renderEventDashboard(registrations) {
   });
 
   const groupEntries = Object.entries(dashboardGroups)
-    .filter(([, group]) => group.event.id !== "club-members")
+    .filter(([eventId, group]) => eventId !== "unknown-event" && group.event.id !== "club-members")
     .sort(([, a], [, b]) => String(a.event.date).localeCompare(String(b.event.date)));
 
   dashboard.innerHTML = "";
@@ -1729,7 +2174,7 @@ function renderJudgingDashboard(registrations, results = [], permittedEventIds =
       const group = groups[event.id] || { event, registrations: [] };
       const eventResults = results.filter((result) => result.event_id === event.id);
       const classGroups = getShowClassGroupsWithResults(event.id, group.registrations, eventResults);
-      const classNames = Object.keys(classGroups).sort();
+      const classNames = sortShowClassNames(Object.keys(classGroups));
       const processedClasses = new Set(eventResults.filter((result) => result.processed_at).map((result) => result.class_name));
       const judgingComplete = classNames.length > 0 && classNames.every((className) => processedClasses.has(className));
       const dateLabel = event.date ? formatDateParts(event.date).label : "Not dated";
@@ -2252,6 +2697,24 @@ async function setEventResultsPublication(eventId) {
   });
 }
 
+async function deleteEventData(eventId) {
+  const registrations = await fetchRegistrations().catch(() => adminRegistrations);
+  const registrationIds = registrations
+    .filter((registration) => getRegistrationEventId(registration) === eventId)
+    .map((registration) => registration.id)
+    .filter(Boolean);
+
+  if (registrationIds.length) await requestSupabase(`/rest/v1/registrations?id=in.(${registrationIds.map(encodeURIComponent).join(",")})`, {
+    method: "DELETE",
+    headers: { Prefer: "return=minimal" },
+  });
+  await requestSupabase(`/rest/v1/show_results?event_id=eq.${encodeURIComponent(eventId)}`, {
+    method: "DELETE",
+    headers: { Prefer: "return=minimal" },
+  });
+  adminRegistrations = adminRegistrations.filter((registration) => !registrationIds.includes(registration.id));
+}
+
 async function archiveEvent(eventId) {
   const config = getSupabaseConfig();
   const token = await getFreshAdminAccessToken();
@@ -2713,7 +3176,7 @@ document.addEventListener("click", async (event) => {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Cancellation notification failed");
-    alert(result.archived ? `Event cancelled and moved to Archived Events. ${result.emailConfigured ? `${result.sentCount || 0} attendee email${result.recipientCount === 1 ? "" : "s"} sent.` : "Email delivery is not configured yet."}` : "Event cancelled and deleted because it had no attendees.");
+    alert(`${result.archived ? "Show cancelled and moved to Archived Events." : "Event cancelled and removed from public listings."} ${result.emailConfigured ? `${result.sentCount || 0} attendee email${result.recipientCount === 1 ? "" : "s"} sent.` : "Email delivery is not configured yet."}`);
     window.location.href = "admin.html";
   } catch (error) {
     alert(`Could not cancel this event: ${error.message}`);
@@ -3116,15 +3579,17 @@ document.addEventListener("click", async (event) => {
 
 document.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-delete-shared-event]");
-  if (!button || !window.confirm("Delete this event?")) return;
+  if (!button || !window.confirm("Delete this event listing?")) return;
   try {
+    await deleteEventData(button.dataset.deleteSharedEvent);
     await requestSupabase(`/rest/v1/events?id=eq.${encodeURIComponent(button.dataset.deleteSharedEvent)}`, { method: "DELETE" });
+    adminRegistrations = await fetchRegistrations().catch(() => adminRegistrations);
     await loadSharedEvents();
     renderAdminEventList();
   } catch (error) { alert(`Could not delete event: ${error.message}`); }
 });
 
-const staticForms = document.querySelectorAll("form:not([data-admin-login]):not([data-event-admin-form]):not([data-club-settings-form]):not([data-obstacle-setup-form])");
+const staticForms = document.querySelectorAll("form:not([data-admin-login]):not([data-event-admin-form]):not([data-club-settings-form]):not([data-obstacle-setup-form]):not([data-member-detail-form])");
 
 function getFormType() {
   const pageName = window.location.pathname.split("/").pop() || "index.html";
@@ -3166,7 +3631,7 @@ function getFormPayload(form) {
     const clubDayFee = Number(form.dataset.eventFee || defaultClubDayFee);
     payload["calculated-total"] = clubDayFee + (payload["club-day-day-membership"] === true ? defaultDayMembershipFee : 0);
   }
-  if (form.matches("[data-annual-membership-form]")) payload["calculated-total"] = annualMembershipFee;
+  if (form.matches("[data-annual-membership-form]")) payload["calculated-total"] = getSelectedMembershipFee(form);
   if (form.matches("[data-clinic-registration-form]")) payload["calculated-total"] = Number(form.dataset.eventFee || defaultClinicFee);
 
   return payload;

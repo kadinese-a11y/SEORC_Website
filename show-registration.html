@@ -57,6 +57,11 @@
 
           <fieldset>
             <legend>Section 1: Participant Details</legend>
+            <div class="form-grid" data-member-lookup data-member-prefix="participant">
+              <label>SEORC membership number<input name="membership-number" placeholder="SEORC-1000"></label>
+              <label>Membership email<input name="membership-email" type="email"></label>
+              <button class="button secondary form-submit" type="button" data-member-lookup-button>Fill member details</button>
+            </div>
             <div class="form-grid">
               <label>
                 First name
@@ -107,40 +112,40 @@
                 </label>
                 <div class="class-grid" data-class-group>
                   <label class="check-row">
-                    <input name="horse-1-class-open" type="checkbox" value="Open" data-price="30">
-                    <span>Open <strong>$30.00</strong></span>
+                    <input name="horse-1-class-young-rider" type="checkbox" value="Young Rider" data-price="15">
+                    <span>Young Rider <strong>$15.00</strong></span>
                   </label>
                   <label class="check-row">
-                    <input name="horse-1-class-limited-open" type="checkbox" value="Limited Open" data-price="30">
-                    <span>Limited Open <strong>$30.00</strong></span>
-                  </label>
-                  <label class="check-row">
-                    <input name="horse-1-class-amateur" type="checkbox" value="Amateur" data-price="30">
-                    <span>Amateur <strong>$30.00</strong></span>
-                  </label>
-                  <label class="check-row">
-                    <input name="horse-1-class-masters" type="checkbox" value="Masters" data-price="30">
-                    <span>Masters <strong>$30.00</strong></span>
+                    <input name="horse-1-class-junior" type="checkbox" value="Junior" data-price="15">
+                    <span>Junior Rider <strong>$15.00</strong></span>
                   </label>
                   <label class="check-row">
                     <input name="horse-1-class-encouragement" type="checkbox" value="Encouragement" data-price="25">
                     <span>Encouragement <strong>$25.00</strong></span>
                   </label>
                   <label class="check-row">
+                    <input name="horse-1-class-green-horse" type="checkbox" value="Green Horse" data-price="25">
+                    <span>Green Horse <strong>$25.00</strong></span>
+                  </label>
+                  <label class="check-row">
                     <input name="horse-1-class-rookie" type="checkbox" value="Rookie" data-price="25">
                     <span>Rookie <strong>$25.00</strong></span>
                   </label>
                   <label class="check-row">
-                    <input name="horse-1-class-junior" type="checkbox" value="Junior" data-price="20">
-                    <span>Junior <strong>$20.00</strong></span>
+                    <input name="horse-1-class-amateur" type="checkbox" value="Amateur" data-price="25">
+                    <span>Amateur <strong>$25.00</strong></span>
                   </label>
                   <label class="check-row">
-                    <input name="horse-1-class-young-rider" type="checkbox" value="Young Rider" data-price="20">
-                    <span>Young Rider <strong>$20.00</strong></span>
+                    <input name="horse-1-class-masters" type="checkbox" value="Masters" data-price="25">
+                    <span>Masters <strong>$25.00</strong></span>
                   </label>
                   <label class="check-row">
-                    <input name="horse-1-class-green-horse" type="checkbox" value="Green Horse" data-price="25">
-                    <span>Green Horse <strong>$25.00</strong></span>
+                    <input name="horse-1-class-open" type="checkbox" value="Open" data-price="30">
+                    <span>Open <strong>$30.00</strong></span>
+                  </label>
+                  <label class="check-row">
+                    <input name="horse-1-class-limited-open" type="checkbox" value="Limited Open" data-price="30">
+                    <span>Limited Open <strong>$30.00</strong></span>
                   </label>
                 </div>
                 <p class="form-status compact" data-class-limit-message hidden>Each horse can only enter three classes.</p>

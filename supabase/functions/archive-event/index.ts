@@ -15,6 +15,7 @@ Deno.serve(async (request) => {
   const { eventId } = await request.json();
   const { data: event, error: eventError } = await client.from("events").select("*").eq("id", eventId).single();
   if (eventError || !event) return new Response(JSON.stringify({ error: "Event not found" }), { status: 404, headers });
+  if (event.type !== "show") return new Response(JSON.stringify({ error: "Only show days can be archived." }), { status: 400, headers });
   const { data: results, error: resultsError } = await client.from("show_results").select("*").eq("event_id", eventId);
   if (resultsError) return new Response(JSON.stringify({ error: resultsError.message }), { status: 400, headers });
   const { data: judgeAssignment, error: judgeAssignmentError } = await client.from("judge_assignments").select("judge_name").eq("event_id", eventId).limit(1).maybeSingle();

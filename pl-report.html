@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Profit &amp; Loss | SEORC Admin</title><link rel="stylesheet" href="styles.css"></head>
+<body data-admin-role-required>
+  <header class="site-header"><a class="brand" href="admin.html"><img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true"><span><strong>SEORC</strong><small>Shoalhaven Extreme Obstacle Racing Club</small></span></a><nav class="site-nav"><a href="admin.html">Admin dashboard</a></nav></header>
+  <main><section class="page-title"><p class="eyebrow">Club finances</p><h1>Profit &amp; Loss.</h1><p data-pl-summary>Loading financial year report...</p></section><section class="admin-layout" data-pl-report><section class="registration-admin-list"><div class="admin-actions"><label>Financial year<select data-pl-financial-year></select></label><a class="button secondary form-submit" href="admin.html">Back to Admin dashboard</a><a class="button secondary form-submit" href="event-expenses.html">Add event cost</a><a class="button secondary form-submit" href="club-expenses.html">Add club cost</a><a class="button secondary form-submit" href="other-income.html">Add other income</a><a class="button primary form-submit" href="past-pl.html">Past P&amp;L</a></div><div data-pl-content><p class="empty-state">Loading report...</p></div></section></section></main>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script><script src="config/supabaseClient.js"></script><script src="script.js?v=20260624-pl-income"></script>
+</body></html>

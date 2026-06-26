@@ -150,17 +150,25 @@ Deno.serve(async (request) => {
     })
     .eq("id", cancellation.id);
 
-  if (attendeeRegistrations.length) {
+  const cancelledAt = new Date().toISOString();
+  if (event.type === "show") {
     const { data: results, error: resultsError } = await adminClient.from("show_results").select("*").eq("event_id", eventId);
-    if (resultsError) throw resultsError;
-    const cancelledAt = new Date().toISOString();
+    if (resultsError) return new Response(JSON.stringify({ error: resultsError.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const { error: archiveError } = await adminClient.from("achieved_events").upsert({ event_id: eventId, event_date: event.date, event_data: { ...event, cancelled_at: cancelledAt, cancellation_notice: message?.trim() || "This event was cancelled." }, results: results || [] }, { onConflict: "event_id" });
-    if (archiveError) throw archiveError;
+    if (archiveError) return new Response(JSON.stringify({ error: archiveError.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
-  const { error: deleteError } = await adminClient.from("events").delete().eq("id", eventId);
-  if (deleteError) throw deleteError;
 
-  return new Response(JSON.stringify({ sentCount, failedCount, recipientCount: recipients.length, archived: attendeeRegistrations.length > 0, emailConfigured: Boolean(resendApiKey && fromEmail) }), {
+  // Keep the event row as a transfer destination. Deleting it can be blocked by
+  // attendee_transfers, whereas cancelled_at removes it from public listings.
+  const { error: cancelEventError } = await adminClient
+    .from("events")
+    .update({ cancelled_at: cancelledAt })
+    .eq("id", eventId);
+  if (cancelEventError) {
+    return new Response(JSON.stringify({ error: cancelEventError.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+
+  return new Response(JSON.stringify({ sentCount, failedCount, recipientCount: recipients.length, archived: event.type === "show", emailConfigured: Boolean(resendApiKey && fromEmail) }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
