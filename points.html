@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Annual Points | SEORC</title>
-    <meta name="description" content="Public SEORC annual points leaderboard for paid club members and rider horse combinations.">
-    <link rel="stylesheet" href="styles.css?v=20260621-points-table-spacing">
+    <meta name="description" content="Public SEORC annual points leaderboard by membership category and horse rider combination.">
+    <link rel="stylesheet" href="styles.css?v=20260627-category-points">
   </head>
   <body>
     <header class="site-header">
@@ -25,7 +25,7 @@
         <a href="index.html">Home</a>
         <a href="registration.html">Registration</a>
         <a href="media.html">Media</a>
-        <a href="calendar.html">Events</a>
+        <a href="calendar.html">Calendar</a>
         <a class="active" href="points.html">Points</a>
       </nav>
     </header>
@@ -34,7 +34,7 @@
       <section class="page-title">
         <p class="eyebrow">Annual points</p>
         <h1>Calendar year leaderboards.</h1>
-        <p data-points-summary>Loading processed show results for paid SEORC members...</p>
+        <p data-points-summary>Loading published show results for Shoalhaven club members...</p>
       </section>
 
       <section class="admin-layout public-points-page" data-points-page>
@@ -48,7 +48,7 @@
             <dd data-points-rider-count>--</dd>
           </div>
           <div>
-            <dt>Horse combos</dt>
+            <dt>Horse/rider combos</dt>
             <dd data-points-combo-count>--</dd>
           </div>
           <div>
@@ -56,35 +56,18 @@
             <dd data-points-result-count>--</dd>
           </div>
         </dl>
-
-        <section class="show-class-panel">
-          <div class="form-heading">
-            <p class="eyebrow">Rider leaderboard</p>
-            <h2>Rider annual points</h2>
-          </div>
-          <div data-rider-points>
-            <p class="empty-state">Loading rider points...</p>
-          </div>
-        </section>
-
-        <section class="show-class-panel">
-          <div class="form-heading">
-            <p class="eyebrow">Horse combination leaderboard</p>
-            <h2>Rider and horse annual points</h2>
-          </div>
-          <div data-combo-points>
-            <p class="empty-state">Loading rider and horse points...</p>
-          </div>
-        </section>
+        <div class="points-category-list" data-category-points>
+          <p class="empty-state">Loading annual category points...</p>
+        </div>
       </section>
     </main>
 
     <footer class="site-footer">
-      <p>Points are calculated from processed show results for paid SEORC members in the selected calendar year.</p>
+      <p>Points are calculated from published show results for Shoalhaven club members in the selected calendar year.</p>
       <p class="footer-links"><a href="mailto:shoalhaveneorc25@gmail.com">shoalhaveneorc25@gmail.com</a><a href="calendar.html">Calendar</a></p>
     </footer>
 
     <script src="config/supabaseClient.js?v=20260618"></script>
-    <script src="script.js?v=20260620-rider-level"></script>
+    <script src="script.js?v=20260627-category-points"></script>
   </body>
 </html>

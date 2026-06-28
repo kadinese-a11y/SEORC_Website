@@ -67,6 +67,14 @@
                 <input name="club-day-last-name" type="text" autocomplete="family-name" required>
               </label>
               <label>
+                Email
+                <input name="club-day-email" type="email" autocomplete="email" required>
+              </label>
+              <label>
+                Phone
+                <input name="club-day-phone" type="tel" autocomplete="tel">
+              </label>
+              <label>
                 Horse name
                 <input name="club-day-horse-name" type="text" required>
               </label>
@@ -80,16 +88,16 @@
               <span>I have paid for my club day using the <a href="bank-details.html">bank details page</a> and sent through my payment details.</span>
             </label>
             <label class="check-row">
-              <input name="club-day-day-membership" type="checkbox" data-price="30">
-              <span>I am not an annual member of <a href="https://www.australianextremeobstacleracing.com.au/copy-of-rule-book" target="_blank" rel="noopener">Australian Extreme Obstacle Racing Australia</a> and need a $30 day membership.</span>
+              <input name="club-day-day-membership" type="checkbox" data-price="25">
+              <span>I am not an annual member of <a href="https://www.australianextremeobstacleracing.com.au/copy-of-rule-book" target="_blank" rel="noopener">Australian Extreme Obstacle Racing Australia</a> and need a $25 day membership.</span>
             </label>
           </fieldset>
 
           <section class="final-cost-panel" aria-label="Club day cost summary">
             <p class="eyebrow">Final cost</p>
-            <div><span>Club day</span><strong data-club-day-base-fee>$40.00</strong></div>
+            <div><span>Club day</span><strong data-club-day-base-fee>$45.00</strong></div>
             <div><span>AEORA day membership</span><strong data-club-day-membership-fee>$0.00</strong></div>
-            <div class="final-cost-total"><span>Total payable</span><strong data-club-day-total>$40.00</strong></div>
+            <div class="final-cost-total"><span>Total payable</span><strong data-club-day-total>$45.00</strong></div>
           </section>
 
           <button class="button primary form-submit" type="submit">Submit Club Day Registration</button>
@@ -113,6 +121,6 @@
     </footer>
 
     <script src="config/supabaseClient.js"></script>
-    <script src="script.js?v=20260621-final-costs"></script>
+    <script src="script.js?v=20260627-registration-emails"></script>
   </body>
 </html>

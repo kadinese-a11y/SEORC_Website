@@ -85,13 +85,8 @@
               </label>
               <label>
                 Riding level
-                <select name="riding-level" required>
+                <select name="riding-level" required data-riding-level-select>
                   <option value="">Select riding level</option>
-                  <option>Professional</option>
-                  <option>Amateur</option>
-                  <option>Encouragement</option>
-                  <option>Rookie</option>
-                  <option>Junior</option>
                 </select>
               </label>
             </div>
@@ -202,8 +197,8 @@
               <span>I have an annual membership with Australian Extreme Obstacle Racing.</span>
             </label>
             <label class="check-row">
-              <input name="aeora-membership" type="radio" value="day" data-price="30" required>
-              <span>I need a day membership <strong>$30.00</strong></span>
+              <input name="aeora-membership" type="radio" value="day" data-price="25" required>
+              <span>I need a day membership <strong>$25.00</strong></span>
             </label>
             <p class="field-note">Please complete the <a href="https://www.australianextremeobstacleracing.com.au/copy-of-rule-book" target="_blank" rel="noopener">Australian Extreme Obstacle Racing day membership form</a> and email it to <a href="mailto:Admin@SEORC.com">Admin@SEORC.com</a> when complete.</p>
           </fieldset>
@@ -251,6 +246,6 @@
     </footer>
 
     <script src="config/supabaseClient.js?v=20260618"></script>
-    <script src="script.js?v=20260620-event-specific-prices"></script>
+    <script src="script.js?v=20260627-registration-emails"></script>
   </body>
 </html>

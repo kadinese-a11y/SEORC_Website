@@ -99,22 +99,13 @@
             <div class="form-grid">
               <label>
                 Riding level
-                <select name="riding-level" required>
+                <select name="riding-level" required data-riding-level-select>
                   <option value="">Select riding level</option>
-                  <option>Professional</option>
-                  <option>Experienced</option>
-                  <option>Intermediate</option>
-                  <option>Novice</option>
                 </select>
               </label>
-              <label>
-                Horse level
-                <select name="horse-level" required>
-                  <option value="">Select horse level</option>
-                  <option>Experienced</option>
-                  <option>Novice</option>
-                  <option>Green</option>
-                </select>
+              <label class="check-row">
+                <input name="horse-level" type="checkbox" value="Green">
+                <span>Please tick if you have a green horse.  We want to ensure we can cater for all our memembers.</span>
               </label>
             </div>
           </fieldset>
@@ -123,7 +114,7 @@
             <legend>Membership Acknowledgements</legend>
             <label class="check-row">
               <input name="aeora-membership-acknowledgement" type="checkbox" required>
-              <span>I acknowledge that I have signed up with <a href="https://www.australianextremeobstacleracing.com.au/copy-of-rule-book" target="_blank" rel="noopener">Australian Extreme Obstacle Racing Australia</a>.</span>
+              <span>I have joined and paid for membership with <a href="https://www.australianextremeobstacleracing.com.au/copy-of-rule-book" target="_blank" rel="noopener">Australian Extreme Obstacle Racing Australia</a> this calendar year.</span>
             </label>
             <label class="check-row">
               <input name="email-notifications" type="checkbox">
@@ -157,6 +148,6 @@
     </footer>
 
     <script src="config/supabaseClient.js"></script>
-    <script src="script.js?v=20260621-final-costs"></script>
+    <script src="script.js?v=20260627-registration-emails"></script>
   </body>
 </html>
