@@ -638,9 +638,10 @@ h3 {
 }
 
 .collapsible-admin-panel { background: var(--surface); border: 1px solid var(--line); }
-.collapsible-admin-panel summary { padding: 14px 16px; color: var(--field-dark); font-weight: 900; cursor: pointer; }
+.collapsible-admin-panel summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; color: var(--field-dark); font-weight: 900; cursor: pointer; }
 .collapsible-admin-panel[open] summary { border-bottom: 1px solid var(--line); }
 .collapsible-admin-panel .form-panel, .collapsible-admin-panel .show-class-panel { margin: 0; border: 0; box-shadow: none; }
+.collapsible-summary-meta { color: var(--muted); font-size: 0.82rem; font-weight: 900; text-align: right; }
 
 .admin-hint {
   margin: 0;
@@ -741,16 +742,6 @@ h3 {
   grid-template-columns: minmax(240px, 1.7fr) minmax(150px, 1fr) 110px 90px 110px;
 }
 
-.club-day-table .admin-table-header,
-.club-day-table .admin-table-row {
-  grid-template-columns: 78px minmax(180px, 1.2fr) minmax(160px, 1fr) minmax(150px, 1fr) 100px;
-}
-
-.club-day-transfer-table .admin-table-header,
-.club-day-transfer-table .admin-table-row {
-  grid-template-columns: minmax(180px, 1.1fr) minmax(160px, 1fr) minmax(150px, 0.9fr) 100px minmax(230px, 1.4fr);
-}
-
 .sr-only {
   position: absolute;
   width: 1px;
@@ -823,6 +814,16 @@ h3 {
 .show-non-member-table .admin-table-header,
 .show-non-member-table .admin-table-row {
   grid-template-columns: minmax(180px, 1.1fr) minmax(190px, 1fr) minmax(140px, 0.8fr) minmax(190px, 1fr);
+}
+
+.event-payment-table .admin-table-header,
+.event-payment-table .admin-table-row {
+  grid-template-columns: 72px minmax(210px, 1.2fr) minmax(180px, 1fr) 110px 120px minmax(140px, 0.8fr);
+}
+
+.event-payment-transfer-table .admin-table-header,
+.event-payment-transfer-table .admin-table-row {
+  grid-template-columns: 72px minmax(210px, 1.2fr) minmax(170px, 1fr) 105px 120px 110px 100px;
 }
 
 .show-finance-summary {

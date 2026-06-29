@@ -6,6 +6,7 @@ const judgeSessionStorageKey = "seorcJudgeSession";
 const eventOverrideStorageKey = "seorcEventOverrides";
 const showOrderStorageKey = "seorcShowClassOrder";
 const membershipConfirmationStorageKey = "seorcMembershipConfirmation";
+const adminPanelOpenStateStorageKey = "seorcAdminPanelOpenState";
 const defaultClubDayFee = 40;
 const defaultDayMembershipFee = 25;
 const defaultClinicFee = 170;
@@ -288,6 +289,26 @@ function renderAdminTable({ columns, rows, className = "", ariaLabel = "", empty
       `).join("")}
     </div>
   `;
+}
+
+function readAdminPanelOpenState() {
+  try {
+    return JSON.parse(localStorage.getItem(adminPanelOpenStateStorageKey) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function writeAdminPanelOpenState(key, isOpen) {
+  const state = readAdminPanelOpenState();
+  state[key] = isOpen;
+  localStorage.setItem(adminPanelOpenStateStorageKey, JSON.stringify(state));
+}
+
+function renderCollapsibleAdminPanel(summary, content, { open = false, key = "", meta = "" } = {}) {
+  const state = key ? readAdminPanelOpenState() : {};
+  const isOpen = key && Object.prototype.hasOwnProperty.call(state, key) ? state[key] === true : open;
+  return `<details class="collapsible-admin-panel"${key ? ` data-panel-key="${escapeHTML(key)}"` : ""}${isOpen ? " open" : ""}><summary><span>${escapeHTML(summary)}</span>${meta ? `<span class="collapsible-summary-meta">${escapeHTML(meta)}</span>` : ""}</summary>${content}</details>`;
 }
 
 function googleMapsUrl(location) {
@@ -896,6 +917,17 @@ function getFormNumber(formData, key) {
   return Number.isFinite(value) ? Math.max(0, value) : 0;
 }
 
+function isShowRegistrationPaid(registration) {
+  const payload = registration?.payload || {};
+  return payload["show-paid"] === true || Boolean(payload["show-paid-at"]);
+}
+
+function getShowRegistrationTotal(registration, event = getEventDetails(getRegistrationEventId(registration))) {
+  const payload = registration.payload || {};
+  const calculatedTotal = Number(payload["calculated-total"]);
+  return Number.isFinite(calculatedTotal) && calculatedTotal > 0 ? calculatedTotal : calculateShowRegistrationTotal(payload, event);
+}
+
 function needsDayMembershipForm(registration) {
   const payload = registration.payload || {};
 
@@ -917,11 +949,17 @@ function getRegistrationRevenue(registration) {
   const calculatedTotal = Number(payload["calculated-total"]);
   const dayMembershipTotal = needsDayMembershipForm(registration) ? defaultDayMembershipFee : 0;
 
+  if (registration.form_type === "show_registration") {
+    if (!isShowRegistrationPaid(registration)) return 0;
+    const event = getEventDetails(getRegistrationEventId(registration));
+    return Math.max(getShowRegistrationTotal(registration, event) - getShowPassThroughTotal(registration, event), 0);
+  }
+
+  if ((registration.form_type === "club_day_registration" || registration.form_type === "clinic_registration") && !isEventRegistrationPaid(registration)) {
+    return 0;
+  }
+
   if (Number.isFinite(calculatedTotal) && calculatedTotal > 0) {
-    if (registration.form_type === "show_registration") {
-      const event = getEventDetails(getRegistrationEventId(registration));
-      return Math.max(calculatedTotal - getShowPassThroughTotal(registration, event), 0);
-    }
     return calculatedTotal;
   }
 
@@ -983,22 +1021,27 @@ function getShowPassThroughTotal(registration, event = getEventDetails(getRegist
 
 function getShowFinancialSummary(event, registrations) {
   return registrations.reduce((summary, registration) => {
-    const total = Number(registration.payload?.["calculated-total"]);
-    const collected = Number.isFinite(total) ? total : 0;
+    const total = getShowRegistrationTotal(registration, event);
+    const collected = isShowRegistrationPaid(registration) ? total : 0;
     const passThrough = getShowPassThroughTotal(registration, event);
     const pricing = getShowPricing(event);
     const payload = registration.payload || {};
     const nightCount = getPayloadNumber(payload, "camping-night-count");
-
-    return {
-      totalCollected: summary.totalCollected + collected,
-      dayMemberships: summary.dayMemberships + (needsDayMembershipForm(registration) ? pricing.dayMembership : 0),
-      dinner: summary.dinner + getPayloadNumber(payload, "dinner-count") * pricing.dinner,
-      campingAndYards: summary.campingAndYards + (
+    const dayMembership = isShowRegistrationPaid(registration) && needsDayMembershipForm(registration) ? pricing.dayMembership : 0;
+    const dinner = isShowRegistrationPaid(registration) ? getPayloadNumber(payload, "dinner-count") * pricing.dinner : 0;
+    const campingAndYards = isShowRegistrationPaid(registration)
+      ? (
         ((payload["camping-with-power"] === true ? pricing.poweredCamping : 0) +
         (payload["camping-without-power"] === true ? pricing.unpoweredCamping : 0)) * nightCount +
         getPayloadNumber(payload, "yard-count") * pricing.yard
-      ),
+      )
+      : 0;
+
+    return {
+      totalCollected: summary.totalCollected + collected,
+      dayMemberships: summary.dayMemberships + dayMembership,
+      dinner: summary.dinner + dinner,
+      campingAndYards: summary.campingAndYards + campingAndYards,
       clubRevenue: summary.clubRevenue + Math.max(collected - passThrough, 0),
     };
   }, { totalCollected: 0, dayMemberships: 0, dinner: 0, campingAndYards: 0, clubRevenue: 0 });
@@ -1785,7 +1828,7 @@ function renderEventPricingForm(event) {
       ? `<label>Clinic fee<input name="clinic_fee" type="number" min="0" step="0.01" value="${Number(settings.clinic_fee ?? defaultClinicFee)}"></label>`
     : `<fieldset class="pricing-section"><legend>Dinner</legend><div class="form-grid"><label>Dinner ticket price<input name="dinner_price" type="number" min="0" step="0.01" value="${Number(settings.dinner_price ?? 30)}"></label><label>Dinner vendor link<input name="dinner_vendor_url" type="url" value="${escapeHTML(settings.dinner_vendor_url || "")}" placeholder="https://..."></label><label>Custom dinner information<textarea name="custom_information" rows="4" placeholder="Information shown in the dinner section">${escapeHTML(settings.custom_information || "")}</textarea></label></div></fieldset><fieldset class="pricing-section"><legend>Camping and yards</legend><div class="form-grid"><label>Camping with power / night<input name="powered_camping_price" type="number" min="0" step="0.01" value="${Number(settings.powered_camping_price ?? 30)}"></label><label>Camping without power / night<input name="unpowered_camping_price" type="number" min="0" step="0.01" value="${Number(settings.unpowered_camping_price ?? 20)}"></label><label>Yard price<input name="yard_price" type="number" min="0" step="0.01" value="${Number(settings.yard_price ?? 5)}"></label></div></fieldset><fieldset class="pricing-section"><legend>Classes</legend><div class="form-grid">${showClassSlugs.map((slug) => `<label>${humanizeFieldName(slug)} class<input name="class_${slug}" type="number" min="0" step="0.01" value="${Number(settings.class_prices?.[slug] ?? getDefaultShowClassPrice(slug))}"></label>`).join("")}</div></fieldset>`;
   const pricingName = event.type === "show" ? "Show pricing" : event.type === "clinic" ? "Clinic pricing" : "Club day pricing";
-  return `<details class="collapsible-admin-panel"><summary>${event.type === "show" ? "Show pricing and participant information" : pricingName}</summary><form class="form-panel" data-event-pricing-form data-event-id="${escapeHTML(event.id)}"><div class="form-heading"><p class="eyebrow">${pricingName}</p><h2>Participant options</h2></div>${event.type === "show" ? fields : `<div class="form-grid">${fields}</div>`}<button class="button primary form-submit" type="submit">Save prices and information</button><p class="form-status" data-event-pricing-status></p></form></details>`;
+  return renderCollapsibleAdminPanel(event.type === "show" ? "Show pricing and participant information" : pricingName, `<form class="form-panel" data-event-pricing-form data-event-id="${escapeHTML(event.id)}"><div class="form-heading"><p class="eyebrow">${pricingName}</p><h2>Participant options</h2></div>${event.type === "show" ? fields : `<div class="form-grid">${fields}</div>`}<button class="button primary form-submit" type="submit">Save prices and information</button><p class="form-status" data-event-pricing-status></p></form>`, { key: `${event.id}:pricing` });
 }
 
 function renderShowFinancePanel(eventId, event, registrations, expenses = []) {
@@ -1806,8 +1849,7 @@ function renderShowFinancePanel(eventId, event, registrations, expenses = []) {
   ];
 
   return `
-    <details class="collapsible-admin-panel">
-      <summary>Show finance</summary>
+    ${renderCollapsibleAdminPanel("Show finance", `
       <section class="show-class-panel">
         <div class="form-heading">
           <p class="eyebrow">Show finances</p>
@@ -1838,7 +1880,7 @@ function renderShowFinancePanel(eventId, event, registrations, expenses = []) {
           <p class="form-status" data-show-cost-status></p>
         </form>
       </section>
-    </details>
+    `, { key: `${eventId}:finance`, meta: `Revenue ${formatCurrency(showRevenue)}` })}
   `;
 }
 
@@ -1883,54 +1925,20 @@ function renderClubMembersDetail(registrations) {
 
 function renderClubDayDetail(group) {
   const clubDayFee = Number(group.event.event_settings?.club_day_fee ?? defaultClubDayFee);
-  const transferDestinations = getEvents()
-    .filter((event) => event.type === "club" && event.id !== group.event.id)
-    .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
-  const transferOptions = transferDestinations
-    .map((event) => `<option value="${escapeHTML(event.id)}">${escapeHTML(`${formatDateParts(event.date).label} · ${event.title}`)}</option>`)
-    .join("");
   return `
     <div class="admin-actions"><button class="button secondary form-submit" type="button" data-download-attendee-list data-event-id="${escapeHTML(group.event.id)}">Download attendee list</button></div>
     <p class="field-note">Club day fee: ${formatCurrency(clubDayFee)}. Each rider needing a day membership adds ${formatCurrency(defaultDayMembershipFee)} to their event total.</p>
-    <div class="admin-data-table club-day-table club-day-transfer-table" role="table" aria-label="${escapeHTML(group.event.title)} attendees">
-      <div role="row" class="admin-table-header">
-        <span role="columnheader">Name</span>
-        <span role="columnheader">Horse</span>
-        <span role="columnheader">Day membership form</span>
-        <span role="columnheader">Cost</span>
-        <span role="columnheader">Transfer</span>
-      </div>
-      ${group.registrations
-        .map((registration) => {
-          return `
-            <div role="row" class="admin-table-row">
-              <span role="cell"><button class="text-link table-text-link" type="button" data-edit-event-registration="${escapeHTML(registration.id)}">${escapeHTML(getParticipantName(registration))}</button></span>
-              <span role="cell">${escapeHTML(getRegistrationHorseNames(registration))}</span>
-              <span role="cell">${needsDayMembershipForm(registration) ? "Bring form" : "Not required"}</span>
-              <span role="cell">${formatCurrency(getRegistrationRevenue(registration))}</span>
-              <span role="cell">
-                ${transferDestinations.length ? `
-                  <label class="transfer-control">
-                    <span class="sr-only">Transfer ${escapeHTML(getParticipantName(registration))} to another club day</span>
-                    <select data-transfer-destination>
-                      <option value="">Choose club day</option>
-                      ${transferOptions}
-                    </select>
-                  </label>
-                  <button class="button secondary compact-button" type="button" data-transfer-attendee data-registration-id="${escapeHTML(registration.id)}" data-from-event="${escapeHTML(group.event.id)}">Transfer</button>
-                ` : '<small>No other club days available</small>'}
-              </span>
-            </div>
-          `;
-        })
-        .join("")}
-    </div>
+    ${renderEventPaymentSection(group.event.id, group, { includeTransfer: true })}
   `;
 }
 
 function renderClinicDetail(group) {
   const clinicFee = Number(group.event.event_settings?.clinic_fee ?? defaultClinicFee);
-  return `<div class="admin-actions"><button class="button secondary form-submit" type="button" data-download-attendee-list data-event-id="${escapeHTML(group.event.id)}">Download attendee list</button></div><p class="field-note">Clinic fee: ${formatCurrency(clinicFee)}. Day-membership forms needed are clearly marked below.</p><div class="admin-data-table club-day-table" role="table" aria-label="${escapeHTML(group.event.title)} attendees"><div role="row" class="admin-table-header"><span role="columnheader">Attended</span><span role="columnheader">Name</span><span role="columnheader">Horse</span><span role="columnheader">Day membership form</span><span role="columnheader">Cost</span></div>${group.registrations.map((registration) => `<div role="row" class="admin-table-row"><span role="cell"><input type="checkbox" aria-label="Mark ${escapeHTML(getParticipantName(registration))} as attended" data-attendance-registration="${escapeHTML(registration.id)}"${registration.payload?.attended === true ? " checked" : ""}></span><span role="cell"><button class="text-link table-text-link" type="button" data-edit-event-registration="${escapeHTML(registration.id)}">${escapeHTML(getParticipantName(registration))}</button></span><span role="cell">${escapeHTML(getRegistrationHorseNames(registration))}</span><span role="cell">${needsDayMembershipForm(registration) ? "Bring form" : "Not required"}</span><span role="cell">${formatCurrency(getRegistrationRevenue(registration))}</span></div>`).join("") || '<p class="empty-state">No clinic registrations yet.</p>'}</div>`;
+  return `
+    <div class="admin-actions"><button class="button secondary form-submit" type="button" data-download-attendee-list data-event-id="${escapeHTML(group.event.id)}">Download attendee list</button></div>
+    <p class="field-note">Clinic fee: ${formatCurrency(clinicFee)}. Day-membership forms needed are clearly marked below.</p>
+    ${renderEventPaymentSection(group.event.id, group)}
+  `;
 }
 
 function renderEventRegistrationEditPanel(registration) {
@@ -1964,6 +1972,103 @@ function renderEventRegistrationEditPanel(registration) {
         <button class="button secondary form-submit" type="button" data-close-modal>Cancel</button>
       </div>
       <p class="form-status" data-event-registration-edit-status></p>
+    </form>
+  `;
+}
+
+function isEventRegistrationPaid(registration) {
+  if (registration.form_type === "show_registration") return isShowRegistrationPaid(registration);
+  if (registration.form_type === "club_day_registration") return registration.payload?.["club-day-paid"] === true;
+  if (registration.form_type === "clinic_registration") return registration.payload?.["clinic-paid"] === true;
+  return false;
+}
+
+function getEventRegistrationPayableTotal(registration, event = getEventDetails(getRegistrationEventId(registration))) {
+  if (registration.form_type === "show_registration") return getShowRegistrationTotal(registration, event);
+  const calculatedTotal = Number(registration.payload?.["calculated-total"]);
+  if (Number.isFinite(calculatedTotal) && calculatedTotal > 0) return calculatedTotal;
+  if (registration.form_type === "club_day_registration") return Number(event.event_settings?.club_day_fee ?? defaultClubDayFee) + (needsDayMembershipForm(registration) ? defaultDayMembershipFee : 0);
+  if (registration.form_type === "clinic_registration") return Number(event.event_settings?.clinic_fee ?? defaultClinicFee);
+  return 0;
+}
+
+function renderPaymentParticipantCell(registration) {
+  const participantName = getParticipantName(registration);
+  const payload = registration.payload || {};
+  const email = payload["participant-email"] || payload["club-day-email"] || payload["clinic-email"] || "No email supplied";
+
+  if (registration.form_type === "show_registration") {
+    return `<button class="text-link table-text-link" type="button" data-edit-show-entry data-entry-id="${escapeHTML(registration.id)}:1:payment">${escapeHTML(participantName)}</button><small>${escapeHTML(email)}</small>`;
+  }
+
+  return `<button class="text-link table-text-link" type="button" data-edit-event-registration="${escapeHTML(registration.id)}">${escapeHTML(participantName)}</button><small>${escapeHTML(email)}</small>`;
+}
+
+function renderEventPaymentSection(eventId, group, { includeTransfer = false } = {}) {
+  const paidCount = group.registrations.filter(isEventRegistrationPaid).length;
+  const totalPayable = group.registrations.reduce((total, registration) => total + getEventRegistrationPayableTotal(registration, group.event), 0);
+  const totalPaid = group.registrations.reduce((total, registration) => total + (isEventRegistrationPaid(registration) ? getEventRegistrationPayableTotal(registration, group.event) : 0), 0);
+  const columns = ["Paid", "Participant", "Horse/s", "Total", "Status", ...(includeTransfer ? ["Transfer"] : []), "Action"];
+
+  return `
+    <div class="form-heading compact-section-heading">
+      <p class="eyebrow">Payments</p>
+      <h2>Payment list</h2>
+      <p>${paidCount} of ${group.registrations.length} registration${group.registrations.length === 1 ? "" : "s"} marked paid. ${formatCurrency(totalPaid)} collected from ${formatCurrency(totalPayable)} payable.</p>
+    </div>
+    ${renderAdminTable({
+      columns,
+      className: includeTransfer ? "event-payment-table event-payment-transfer-table" : "event-payment-table",
+      ariaLabel: `${group.event.title} payment list`,
+      emptyMessage: "No registrations yet.",
+      rows: group.registrations.map((registration) => {
+        const payload = registration.payload || {};
+        const paid = isEventRegistrationPaid(registration);
+        const participant = getParticipantName(registration);
+        const deleteButton = registration.form_type === "show_registration"
+          ? `<button class="button secondary compact-button" type="button" data-delete-show-registration="${escapeHTML(registration.id)}" data-event-id="${escapeHTML(eventId)}" data-participant-name="${escapeHTML(participant)}">Delete</button>`
+          : `<button class="button secondary compact-button" type="button" data-delete-event-registration="${escapeHTML(registration.id)}" data-participant-name="${escapeHTML(participant)}">Delete</button>`;
+        const row = [
+          `<input type="checkbox" aria-label="Mark ${escapeHTML(participant)} as paid" data-payment-registration="${escapeHTML(registration.id)}"${paid ? " checked" : ""}>`,
+          renderPaymentParticipantCell(registration),
+          escapeHTML(getRegistrationHorseNames(registration)),
+          formatCurrency(getEventRegistrationPayableTotal(registration, group.event)),
+          `<span class="status-pill ${paid ? "status-active" : "status-expired"}">${paid ? "Paid" : "Unpaid"}</span>${payload["show-paid-at"] ? `<small>${escapeHTML(formatDateParts(String(payload["show-paid-at"]).slice(0, 10)).label)}</small>` : ""}`,
+        ];
+
+        if (includeTransfer) row.push(`<button class="button secondary compact-button" type="button" data-open-transfer-modal="${escapeHTML(registration.id)}" data-from-event="${escapeHTML(eventId)}">Transfer</button>`);
+        row.push(deleteButton);
+        return row;
+      }),
+    })}
+  `;
+}
+
+function renderTransferAttendeeModal(registration, fromEventId) {
+  const participantName = getParticipantName(registration);
+  const destinations = getEvents()
+    .filter((event) => event.type === "club" && event.id !== fromEventId)
+    .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+
+  return `
+    <form class="form-panel modal-edit-panel" data-transfer-attendee-form data-registration-id="${escapeHTML(registration.id)}" data-from-event="${escapeHTML(fromEventId)}">
+      <div class="form-heading modal-heading">
+        <p class="eyebrow">Transfer attendee</p>
+        <h2 id="modal-title">${escapeHTML(participantName)}</h2>
+        <p>Move this registration to another club day.</p>
+      </div>
+      <label>Transfer to
+        <select name="destination_event_id" required>
+          <option value="">Choose club day</option>
+          ${destinations.map((event) => `<option value="${escapeHTML(event.id)}">${escapeHTML(`${formatDateParts(event.date).label} · ${event.title}`)}</option>`).join("")}
+        </select>
+      </label>
+      ${destinations.length ? "" : '<p class="empty-state">No other club days are available yet.</p>'}
+      <div class="admin-actions">
+        <button class="button primary form-submit" type="submit"${destinations.length ? "" : " disabled"}>Transfer attendee</button>
+        <button class="button secondary form-submit" type="button" data-close-modal>Cancel</button>
+      </div>
+      <p class="form-status" data-transfer-attendee-status></p>
     </form>
   `;
 }
@@ -2043,6 +2148,19 @@ function renderShowEntryEditPanel(eventId, group) {
   `;
 }
 
+function renderShowPaymentSection(eventId, group) {
+  const paidCount = group.registrations.filter(isShowRegistrationPaid).length;
+  const totalPaid = group.registrations.reduce((total, registration) => total + (isShowRegistrationPaid(registration) ? getShowRegistrationTotal(registration, group.event) : 0), 0);
+
+  return `
+    ${renderCollapsibleAdminPanel("Show payments", `
+      <section class="show-class-panel">
+        ${renderEventPaymentSection(eventId, group)}
+      </section>
+    `, { key: `${eventId}:payments`, meta: `${paidCount}/${group.registrations.length} paid · ${formatCurrency(totalPaid)} collected` })}
+  `;
+}
+
 function renderShowDetail(eventId, group, results = [], expenses = []) {
   const classGroups = getShowClassGroupsWithResults(eventId, group.registrations, results);
   const classNames = sortShowClassNames(Object.keys(classGroups));
@@ -2085,146 +2203,154 @@ function renderShowDetail(eventId, group, results = [], expenses = []) {
     .filter((entry) => entry.hasCamping || entry.yardCount > 0);
   const classSections = classNames.length
     ? classNames
-    .map((className) => `
-      <section class="show-class-panel">
-        <div class="form-heading">
-          <p class="eyebrow">Show class</p>
-          <h2>${escapeHTML(className)}${processedClasses.has(className) ? ' <span class="class-complete-icon" title="Results processed" aria-label="Results processed">Complete</span>' : ""}</h2>
-        </div>
-        <div class="admin-data-table show-class-table" role="table" aria-label="${escapeHTML(className)} entries">
-          <div role="row" class="admin-table-header">
-            <span role="columnheader">Order</span>
-            <span role="columnheader">Participant</span>
-            <span role="columnheader">Horse</span>
-            <span role="columnheader">Riding Level</span>
-            <span role="columnheader">Drag</span>
+    .map((className) => {
+      const entries = classGroups[className];
+      const isComplete = processedClasses.has(className);
+      return renderCollapsibleAdminPanel(`${className} class`, `
+        <section class="show-class-panel">
+          <div class="form-heading">
+            <p class="eyebrow">Show class</p>
+            <h2>${escapeHTML(className)}${isComplete ? ' <span class="class-complete-icon" title="Results processed" aria-label="Results processed">Complete</span>' : ""}</h2>
           </div>
-          ${classGroups[className]
-            .map((entry, index) => `
-              <div role="row" class="admin-table-row show-draggable-row" draggable="true" data-drag-entry="${escapeHTML(entry.id)}" data-class-name="${escapeHTML(className)}">
-                <span role="cell">${index + 1}</span>
-                <span role="cell">${entry.isManual ? escapeHTML(entry.participant) : `<button class="text-link table-text-link" type="button" data-edit-show-entry data-entry-id="${escapeHTML(entry.id)}">${escapeHTML(entry.participant)}</button>`}</span>
-                <span role="cell">${escapeHTML(entry.horseName)}</span>
-                <span role="cell">${escapeHTML(entry.ridingClass)}${entry.isManual ? "<small>Added manually</small>" : ""}</span>
-                <span role="cell">
-                  <button class="drag-handle" type="button" aria-label="Drag ${escapeHTML(entry.participant)}">Drag</button>
-                </span>
-              </div>
-            `)
-            .join("")}
-        </div>
-      </section>
-    `)
+          <div class="admin-data-table show-class-table" role="table" aria-label="${escapeHTML(className)} entries">
+            <div role="row" class="admin-table-header">
+              <span role="columnheader">Order</span>
+              <span role="columnheader">Participant</span>
+              <span role="columnheader">Horse</span>
+              <span role="columnheader">Riding Level</span>
+              <span role="columnheader">Drag</span>
+            </div>
+            ${entries
+              .map((entry, index) => `
+                <div role="row" class="admin-table-row show-draggable-row" draggable="true" data-drag-entry="${escapeHTML(entry.id)}" data-class-name="${escapeHTML(className)}">
+                  <span role="cell">${index + 1}</span>
+                  <span role="cell">${entry.isManual ? escapeHTML(entry.participant) : `<button class="text-link table-text-link" type="button" data-edit-show-entry data-entry-id="${escapeHTML(entry.id)}">${escapeHTML(entry.participant)}</button>`}</span>
+                  <span role="cell">${escapeHTML(entry.horseName)}</span>
+                  <span role="cell">${escapeHTML(entry.ridingClass)}${entry.isManual ? "<small>Added manually</small>" : ""}</span>
+                  <span role="cell">
+                    <button class="drag-handle" type="button" aria-label="Drag ${escapeHTML(entry.participant)}">Drag</button>
+                  </span>
+                </div>
+              `)
+              .join("")}
+          </div>
+        </section>
+      `, { key: `${eventId}:class:${className}`, meta: `${entries.length} entr${entries.length === 1 ? "y" : "ies"}${isComplete ? " · Complete" : ""}` });
+    })
     .join("")
     : '<p class="empty-state">No show class entries yet.</p>';
 
-  const showSummarySection = `
-    <details class="collapsible-admin-panel"><summary>Judge access</summary><section class="show-class-panel"><div class="form-heading"><p class="eyebrow">Judge access</p><h2>Assign a judge to this show</h2><p data-judge-assignment-summary>Checking current judge assignment...</p></div><form class="form-grid judge-access-form" data-judge-credentials-form data-event-id="${escapeHTML(eventId)}"><label>Judge login name<input name="username" type="text" pattern="[a-zA-Z0-9._-]+" autocomplete="username" required><span class="field-note">This exact name is used on the judge sign-in page.</span></label><label>New password<input name="password" type="text" minlength="5" required><span class="field-note">At least 5 characters. The password is visible while you set it.</span></label><button class="button secondary form-submit" type="submit">Assign judge &amp; save access</button><p class="form-status" data-judge-credentials-status></p></form></section></details>
-  `;
+  const showSummarySection = renderCollapsibleAdminPanel("Judge access", `<section class="show-class-panel"><div class="form-heading"><p class="eyebrow">Judge access</p><h2>Assign a judge to this show</h2><p data-judge-assignment-summary>Checking current judge assignment...</p></div><form class="form-grid judge-access-form" data-judge-credentials-form data-event-id="${escapeHTML(eventId)}"><label>Judge login name<input name="username" type="text" pattern="[a-zA-Z0-9._-]+" autocomplete="username" required><span class="field-note">This exact name is used on the judge sign-in page.</span></label><label>New password<input name="password" type="text" minlength="5" required><span class="field-note">At least 5 characters. The password is visible while you set it.</span></label><button class="button secondary form-submit" type="submit">Assign judge &amp; save access</button><p class="form-status" data-judge-credentials-status></p></form></section>`, { key: `${eventId}:judge-access` });
 
   const dinnerSection = `
-    <section class="show-class-panel">
-      <div class="form-heading">
-        <p class="eyebrow">Show extras</p>
-        <h2>Dinner list</h2>
-      </div>
-      ${dinnerRegistrations.length
-        ? `
-          <div class="admin-data-table show-extra-table show-dinner-table" role="table" aria-label="Dinner tickets">
-            <div role="row" class="admin-table-header">
-              <span role="columnheader">Participant</span>
-              <span role="columnheader">Email</span>
-              <span role="columnheader">Dinner tickets</span>
+    ${renderCollapsibleAdminPanel("Dinner list", `
+      <section class="show-class-panel">
+        <div class="form-heading">
+          <p class="eyebrow">Show extras</p>
+          <h2>Dinner list</h2>
+        </div>
+        ${dinnerRegistrations.length
+          ? `
+            <div class="admin-data-table show-extra-table show-dinner-table" role="table" aria-label="Dinner tickets">
+              <div role="row" class="admin-table-header">
+                <span role="columnheader">Participant</span>
+                <span role="columnheader">Email</span>
+                <span role="columnheader">Dinner tickets</span>
+              </div>
+              ${dinnerRegistrations
+                .map(({ registration, dinnerCount }) => {
+                  const payload = registration.payload || {};
+                  return `
+                    <div role="row" class="admin-table-row">
+                      <span role="cell">${escapeHTML(getParticipantName(registration))}</span>
+                      <span role="cell">${escapeHTML(payload["participant-email"] || "Not supplied")}</span>
+                      <span role="cell">${dinnerCount}</span>
+                    </div>
+                  `;
+                })
+                .join("")}
             </div>
-            ${dinnerRegistrations
-              .map(({ registration, dinnerCount }) => {
-                const payload = registration.payload || {};
-                return `
-                  <div role="row" class="admin-table-row">
-                    <span role="cell">${escapeHTML(getParticipantName(registration))}</span>
-                    <span role="cell">${escapeHTML(payload["participant-email"] || "Not supplied")}</span>
-                    <span role="cell">${dinnerCount}</span>
-                  </div>
-                `;
-              })
-              .join("")}
-          </div>
-        `
-        : '<p class="empty-state">No dinner tickets requested yet.</p>'}
-    </section>
+          `
+          : '<p class="empty-state">No dinner tickets requested yet.</p>'}
+      </section>
+    `, { key: `${eventId}:dinner`, meta: `${dinnerTicketTotal} ticket${dinnerTicketTotal === 1 ? "" : "s"}` })}
   `;
 
   const campingSection = `
-    <section class="show-class-panel">
-      <div class="form-heading">
-        <p class="eyebrow">Show extras</p>
-        <h2>Camping and yards</h2>
-      </div>
-      ${campingRegistrations.length
-        ? `
-          <div class="admin-data-table show-extra-table show-camping-table" role="table" aria-label="Camping and yards">
-            <div role="row" class="admin-table-header">
-              <span role="columnheader">Participant</span>
-              <span role="columnheader">Camping</span>
-              <span role="columnheader">Nights</span>
-              <span role="columnheader">Yards</span>
-              <span role="columnheader">Phone</span>
+    ${renderCollapsibleAdminPanel("Camping and yards", `
+      <section class="show-class-panel">
+        <div class="form-heading">
+          <p class="eyebrow">Show extras</p>
+          <h2>Camping and yards</h2>
+        </div>
+        ${campingRegistrations.length
+          ? `
+            <div class="admin-data-table show-extra-table show-camping-table" role="table" aria-label="Camping and yards">
+              <div role="row" class="admin-table-header">
+                <span role="columnheader">Participant</span>
+                <span role="columnheader">Camping</span>
+                <span role="columnheader">Nights</span>
+                <span role="columnheader">Yards</span>
+                <span role="columnheader">Phone</span>
+              </div>
+              ${campingRegistrations
+                .map(({ registration, campingType, nightCount, yardCount }) => {
+                  const payload = registration.payload || {};
+                  return `
+                    <div role="row" class="admin-table-row">
+                      <span role="cell">${escapeHTML(getParticipantName(registration))}</span>
+                      <span role="cell">${escapeHTML(campingType)}</span>
+                      <span role="cell">${nightCount}</span>
+                      <span role="cell">${yardCount}</span>
+                      <span role="cell">${escapeHTML(payload["participant-phone"] || "Not supplied")}</span>
+                    </div>
+                  `;
+                })
+                .join("")}
             </div>
-            ${campingRegistrations
-              .map(({ registration, campingType, nightCount, yardCount }) => {
-                const payload = registration.payload || {};
-                return `
-                  <div role="row" class="admin-table-row">
-                    <span role="cell">${escapeHTML(getParticipantName(registration))}</span>
-                    <span role="cell">${escapeHTML(campingType)}</span>
-                    <span role="cell">${nightCount}</span>
-                    <span role="cell">${yardCount}</span>
-                    <span role="cell">${escapeHTML(payload["participant-phone"] || "Not supplied")}</span>
-                  </div>
-                `;
-              })
-              .join("")}
-          </div>
-        `
-        : '<p class="empty-state">No camping or yards requested yet.</p>'}
-    </section>
+          `
+          : '<p class="empty-state">No camping or yards requested yet.</p>'}
+      </section>
+    `, { key: `${eventId}:camping`, meta: `${campingRegistrations.length} registration${campingRegistrations.length === 1 ? "" : "s"}` })}
   `;
 
   const nonMemberSection = `
-    <section class="show-class-panel">
-      <div class="form-heading">
-        <p class="eyebrow">Membership</p>
-        <h2>Non-members</h2>
-      </div>
-      ${nonMemberRegistrations.length
-        ? `
-          <div class="admin-data-table show-non-member-table" role="table" aria-label="Non-members needing day membership">
-            <div role="row" class="admin-table-header">
-              <span role="columnheader">Participant</span>
-              <span role="columnheader">Email</span>
-              <span role="columnheader">Phone</span>
-              <span role="columnheader">Membership</span>
+    ${renderCollapsibleAdminPanel("Non-members", `
+      <section class="show-class-panel">
+        <div class="form-heading">
+          <p class="eyebrow">Membership</p>
+          <h2>Non-members</h2>
+        </div>
+        ${nonMemberRegistrations.length
+          ? `
+            <div class="admin-data-table show-non-member-table" role="table" aria-label="Non-members needing day membership">
+              <div role="row" class="admin-table-header">
+                <span role="columnheader">Participant</span>
+                <span role="columnheader">Email</span>
+                <span role="columnheader">Phone</span>
+                <span role="columnheader">Membership</span>
+              </div>
+              ${nonMemberRegistrations
+                .map((registration) => {
+                  const payload = registration.payload || {};
+                  return `
+                    <div role="row" class="admin-table-row">
+                      <span role="cell">${escapeHTML(getParticipantName(registration))}</span>
+                      <span role="cell">${escapeHTML(payload["participant-email"] || "Not supplied")}</span>
+                      <span role="cell">${escapeHTML(payload["participant-phone"] || "Not supplied")}</span>
+                      <span role="cell">Day membership form needed</span>
+                    </div>
+                  `;
+                })
+                .join("")}
             </div>
-            ${nonMemberRegistrations
-              .map((registration) => {
-                const payload = registration.payload || {};
-                return `
-                  <div role="row" class="admin-table-row">
-                    <span role="cell">${escapeHTML(getParticipantName(registration))}</span>
-                    <span role="cell">${escapeHTML(payload["participant-email"] || "Not supplied")}</span>
-                    <span role="cell">${escapeHTML(payload["participant-phone"] || "Not supplied")}</span>
-                    <span role="cell">Day membership form needed</span>
-                  </div>
-                `;
-              })
-              .join("")}
-          </div>
-        `
-        : '<p class="empty-state">No non-members listed for this show yet.</p>'}
-    </section>
+          `
+          : '<p class="empty-state">No non-members listed for this show yet.</p>'}
+      </section>
+    `, { key: `${eventId}:non-members`, meta: `${nonMemberRegistrations.length}` })}
   `;
 
-  return `${showSummarySection}${classSections}${nonMemberSection}${dinnerSection}${campingSection}`;
+  return `${showSummarySection}${renderShowPaymentSection(eventId, group)}${classSections}${nonMemberSection}${dinnerSection}${campingSection}`;
 }
 
 function renderEventPage(registrations) {
@@ -3070,6 +3196,33 @@ async function deleteEventData(eventId) {
   adminRegistrations = adminRegistrations.filter((registration) => !registrationIds.includes(registration.id));
 }
 
+async function deleteShowRegistration(eventId, registrationId) {
+  const resultQuery = new URLSearchParams({
+    event_id: `eq.${eventId}`,
+    entry_id: `like.${registrationId}:%`,
+  });
+
+  await requestSupabase(`/rest/v1/show_results?${resultQuery.toString()}`, {
+    method: "DELETE",
+    headers: { Prefer: "return=minimal" },
+  });
+  await requestSupabase(`/rest/v1/registrations?id=eq.${encodeURIComponent(registrationId)}`, {
+    method: "DELETE",
+    headers: { Prefer: "return=minimal" },
+  });
+
+  adminRegistrations = adminRegistrations.filter((registration) => registration.id !== registrationId);
+  showResults = showResults.filter((result) => !(result.event_id === eventId && String(result.entry_id || "").startsWith(`${registrationId}:`)));
+}
+
+async function deleteRegistration(registrationId) {
+  await requestSupabase(`/rest/v1/registrations?id=eq.${encodeURIComponent(registrationId)}`, {
+    method: "DELETE",
+    headers: { Prefer: "return=minimal" },
+  });
+  adminRegistrations = adminRegistrations.filter((registration) => registration.id !== registrationId);
+}
+
 async function archiveEvent(eventId) {
   const config = getSupabaseConfig();
   const token = await getFreshAdminAccessToken();
@@ -3532,6 +3685,12 @@ document.addEventListener("click", async (event) => {
   } catch (error) { alert(`Could not publish and archive event: ${error.message}`); button.disabled = false; }
 });
 
+document.addEventListener("toggle", (event) => {
+  const panel = event.target.closest?.("[data-panel-key]");
+  if (!panel) return;
+  writeAdminPanelOpenState(panel.dataset.panelKey, panel.open);
+}, true);
+
 document.addEventListener("click", async (event) => {
   const cancelButton = event.target.closest("[data-cancel-event]");
   if (!cancelButton) return;
@@ -3627,22 +3786,36 @@ document.addEventListener("click", (event) => {
   closeModal();
 });
 
-document.addEventListener("click", async (event) => {
-  const transferButton = event.target.closest("[data-transfer-attendee]");
+document.addEventListener("click", (event) => {
+  const transferButton = event.target.closest("[data-open-transfer-modal]");
   if (!transferButton) return;
-  const row = transferButton.closest("[role='row']");
-  const destinationId = row?.querySelector("[data-transfer-destination]")?.value;
+  const registration = adminRegistrations.find((item) => item.id === transferButton.dataset.openTransferModal);
+  if (!registration) return;
+  openModal(renderTransferAttendeeModal(registration, transferButton.dataset.fromEvent));
+});
+
+document.addEventListener("submit", async (event) => {
+  const transferForm = event.target.closest("[data-transfer-attendee-form]");
+  if (!transferForm) return;
+  event.preventDefault();
+  const destinationId = String(new FormData(transferForm).get("destination_event_id") || "");
   const destination = getEvents().find((item) => item.id === destinationId && item.type === "club");
-  const registration = adminRegistrations.find((item) => item.id === transferButton.dataset.registrationId);
-  if (!destination || !registration) { alert("Choose the destination club day first."); return; }
+  const registration = adminRegistrations.find((item) => item.id === transferForm.dataset.registrationId);
+  const status = transferForm.querySelector("[data-transfer-attendee-status]");
+  if (!destination || !registration) {
+    if (status) status.textContent = "Choose the destination club day first.";
+    return;
+  }
   if (!window.confirm(`Transfer ${getParticipantName(registration)} to ${destination.title}?`)) return;
   const payload = { ...registration.payload, "club-date": destination.id };
-  transferButton.disabled = true;
   try {
     await patchRegistrationPayload(registration.id, payload, { returning: "representation" });
-    await requestSupabase("/rest/v1/attendee_transfers", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ registration_id: registration.id, from_event_id: transferButton.dataset.fromEvent, to_event_id: destination.id }) });
+    await requestSupabase("/rest/v1/attendee_transfers", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ registration_id: registration.id, from_event_id: transferForm.dataset.fromEvent, to_event_id: destination.id }) });
+    closeModal();
     await loadRegistrations();
-  } catch (error) { alert(`Could not transfer attendee: ${error.message}`); transferButton.disabled = false; }
+  } catch (error) {
+    if (status) status.textContent = `Could not transfer attendee: ${error.message}`;
+  }
 });
 
 function csvCell(value) {
@@ -3681,6 +3854,71 @@ document.addEventListener("change", async (event) => {
     checkbox.checked = !checkbox.checked;
     alert(`Could not save attendance: ${error.message}`);
   } finally { checkbox.disabled = false; }
+});
+
+document.addEventListener("change", async (event) => {
+  const checkbox = event.target.closest("[data-payment-registration]");
+  if (!checkbox) return;
+  const registration = adminRegistrations.find((item) => item.id === checkbox.dataset.paymentRegistration);
+  if (!registration) return;
+
+  checkbox.disabled = true;
+  try {
+    const payload = { ...(registration.payload || {}) };
+    if (registration.form_type === "show_registration") {
+      payload["show-paid"] = checkbox.checked;
+      payload["show-paid-at"] = checkbox.checked ? new Date().toISOString() : null;
+    } else if (registration.form_type === "club_day_registration") {
+      payload["club-day-paid"] = checkbox.checked;
+    } else if (registration.form_type === "clinic_registration") {
+      payload["clinic-paid"] = checkbox.checked;
+    }
+    await patchRegistrationPayload(registration.id, payload);
+    registration.payload = payload;
+    renderEventPage(adminRegistrations);
+  } catch (error) {
+    checkbox.checked = !checkbox.checked;
+    alert(`Could not update payment status: ${error.message}`);
+  } finally {
+    checkbox.disabled = false;
+  }
+});
+
+document.addEventListener("click", async (event) => {
+  const deleteButton = event.target.closest("[data-delete-show-registration]");
+  if (!deleteButton) return;
+
+  const participantName = deleteButton.dataset.participantName || "this show entry";
+  if (!window.confirm(`Delete ${participantName}? This removes their show registration and linked show results.`)) return;
+
+  deleteButton.disabled = true;
+  try {
+    await deleteShowRegistration(deleteButton.dataset.eventId, deleteButton.dataset.deleteShowRegistration);
+    renderEventPage(adminRegistrations);
+  } catch (error) {
+    alert(`Could not delete show entry: ${error.message}`);
+  } finally {
+    deleteButton.disabled = false;
+  }
+});
+
+document.addEventListener("click", async (event) => {
+  const deleteButton = event.target.closest("[data-delete-event-registration]");
+  if (!deleteButton) return;
+
+  const participantName = deleteButton.dataset.participantName || "this attendee";
+  if (!window.confirm(`Delete ${participantName} from this event?`)) return;
+
+  deleteButton.disabled = true;
+  try {
+    await deleteRegistration(deleteButton.dataset.deleteEventRegistration);
+    renderEventPage(adminRegistrations);
+    renderEventDashboard(adminRegistrations);
+  } catch (error) {
+    alert(`Could not delete attendee: ${error.message}`);
+  } finally {
+    deleteButton.disabled = false;
+  }
 });
 
 document.addEventListener("click", async (event) => {

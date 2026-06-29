@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SEORC_LOGO_URL } from "../_shared/brand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -119,7 +120,7 @@ function seorcEmailTemplate(options: {
       <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
         <tr>
           <td style="background-color:#1a2f4e;padding:28px 40px;text-align:center;">
-            <img src="https://www.shoalhaveneorc.com/assets/seorc-club-logo.png" alt="SEORC Logo" width="64" style="display:block;margin:0 auto 12px;border:0;" />
+            <img src="${SEORC_LOGO_URL}" alt="SEORC Logo" width="64" style="display:block;margin:0 auto 12px;border:0;" />
             <p style="margin:0;color:#c8a96e;font-size:11px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;">Shoalhaven Extreme Obstacle Racing Club</p>
           </td>
         </tr>
