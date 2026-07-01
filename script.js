@@ -1100,6 +1100,15 @@ function getShowHorseCount(registrations) {
   }, 0);
 }
 
+function getShowHorseNumbers(payload = {}) {
+  const numbers = new Set();
+  Object.entries(payload).forEach(([key, value]) => {
+    const match = key.match(/^horse-(\d+)-/);
+    if (match && value !== "" && value !== false && value !== null && value !== undefined) numbers.add(match[1]);
+  });
+  return [...numbers].sort((a, b) => Number(a) - Number(b));
+}
+
 function getShowClassEntries(eventId, registrations) {
   const order = readShowOrder();
   const classGroups = {};
@@ -1998,7 +2007,7 @@ function renderPaymentParticipantCell(registration) {
   const email = payload["participant-email"] || payload["club-day-email"] || payload["clinic-email"] || "No email supplied";
 
   if (registration.form_type === "show_registration") {
-    return `<button class="text-link table-text-link" type="button" data-edit-show-entry data-entry-id="${escapeHTML(registration.id)}:1:payment">${escapeHTML(participantName)}</button><small>${escapeHTML(email)}</small>`;
+    return `<button class="text-link table-text-link" type="button" data-edit-show-entry data-entry-id="${escapeHTML(registration.id)}:all:payment">${escapeHTML(participantName)}</button><small>${escapeHTML(email)}</small>`;
   }
 
   return `<button class="text-link table-text-link" type="button" data-edit-event-registration="${escapeHTML(registration.id)}">${escapeHTML(participantName)}</button><small>${escapeHTML(email)}</small>`;
@@ -2092,8 +2101,25 @@ function renderShowEntryEditPanel(eventId, group) {
   const pricing = getShowPricing(group.event);
   const classPrices = group.event?.event_settings?.class_prices || {};
   const participantName = getParticipantName(registration);
-  const horseNameField = `horse-${horseNumber}-name`;
+  const horseNumbers = horseNumber === "all" ? (getShowHorseNumbers(payload).length ? getShowHorseNumbers(payload) : ["1"]) : [horseNumber];
   const membershipValue = payload["aeora-membership"] || (payload["aeora-day-membership"] ? "day" : payload["aeora-annual-membership"] ? "annual" : "none");
+  const horseFieldsets = horseNumbers.map((currentHorseNumber) => {
+    const horseNameField = `horse-${currentHorseNumber}-name`;
+    return `
+      <fieldset>
+        <legend>Horse ${escapeHTML(currentHorseNumber)} and classes</legend>
+        <label>Horse name<input name="${escapeHTML(horseNameField)}" type="text" value="${escapeHTML(payload[horseNameField] || "")}" required></label>
+        <div class="checkbox-grid">
+          ${showClassSlugs.map((slug) => {
+            const className = humanizeFieldName(slug);
+            const price = Number(classPrices[slug] ?? getDefaultShowClassPrice(slug));
+            const fieldName = `horse-${currentHorseNumber}-class-${slug}`;
+            return `<label class="check-row"><input name="${escapeHTML(fieldName)}" type="checkbox"${payload[fieldName] === true ? " checked" : ""}><span>${escapeHTML(className)} <strong>${formatCurrency(price)}</strong></span></label>`;
+          }).join("")}
+        </div>
+      </fieldset>
+    `;
+  }).join("");
 
   return `
     <form class="form-panel show-entry-edit-panel modal-edit-panel" data-show-entry-edit-form data-registration-id="${escapeHTML(registration.id)}" data-event-id="${escapeHTML(eventId)}" data-horse-number="${escapeHTML(horseNumber)}">
@@ -2112,18 +2138,7 @@ function renderShowEntryEditPanel(eventId, group) {
         <label>Membership number<input name="membership-number" type="text" value="${escapeHTML(payload["membership-number"] || "")}"></label>
         <label>Membership email<input name="membership-email" type="email" value="${escapeHTML(payload["membership-email"] || "")}"></label>
       </div>
-      <fieldset>
-        <legend>Horse ${escapeHTML(horseNumber)} and classes</legend>
-        <label>Horse name<input name="${escapeHTML(horseNameField)}" type="text" value="${escapeHTML(payload[horseNameField] || "")}" required></label>
-        <div class="checkbox-grid">
-          ${showClassSlugs.map((slug) => {
-            const className = humanizeFieldName(slug);
-            const price = Number(classPrices[slug] ?? getDefaultShowClassPrice(slug));
-            const fieldName = `horse-${horseNumber}-class-${slug}`;
-            return `<label class="check-row"><input name="${escapeHTML(fieldName)}" type="checkbox"${payload[fieldName] === true ? " checked" : ""}><span>${escapeHTML(className)} <strong>${formatCurrency(price)}</strong></span></label>`;
-          }).join("")}
-        </div>
-      </fieldset>
+      ${horseFieldsets}
       <fieldset>
         <legend>Membership and extras</legend>
         <div class="form-grid">
@@ -3197,14 +3212,11 @@ async function deleteEventData(eventId) {
 }
 
 async function deleteShowRegistration(eventId, registrationId) {
-  const resultQuery = new URLSearchParams({
-    event_id: `eq.${eventId}`,
-    entry_id: `like.${registrationId}:%`,
-  });
-
-  await requestSupabase(`/rest/v1/show_results?${resultQuery.toString()}`, {
+  await requestSupabase(`/rest/v1/show_results?event_id=eq.${encodeURIComponent(eventId)}&entry_id=like.${encodeURIComponent(`${registrationId}:*`)}`, {
     method: "DELETE",
     headers: { Prefer: "return=minimal" },
+  }).catch((error) => {
+    console.warn("Linked show result cleanup failed; deleting registration anyway:", error);
   });
   await requestSupabase(`/rest/v1/registrations?id=eq.${encodeURIComponent(registrationId)}`, {
     method: "DELETE",
@@ -4122,14 +4134,17 @@ document.addEventListener("submit", async (event) => {
 
     const formData = new FormData(showEntryForm);
     const payload = { ...registration.payload };
+    const horseNumbers = horseNumber === "all" ? (getShowHorseNumbers(payload).length ? getShowHorseNumbers(payload) : ["1"]) : [horseNumber];
 
     ["participant-first-name", "participant-last-name", "participant-email", "participant-phone", "participant-date-of-birth", "riding-level", "membership-number", "membership-email"].forEach((field) => {
       payload[field] = String(formData.get(field) || "").trim();
     });
 
-    payload[`horse-${horseNumber}-name`] = String(formData.get(`horse-${horseNumber}-name`) || "").trim();
-    showClassSlugs.forEach((slug) => {
-      payload[`horse-${horseNumber}-class-${slug}`] = formData.has(`horse-${horseNumber}-class-${slug}`);
+    horseNumbers.forEach((currentHorseNumber) => {
+      payload[`horse-${currentHorseNumber}-name`] = String(formData.get(`horse-${currentHorseNumber}-name`) || "").trim();
+      showClassSlugs.forEach((slug) => {
+        payload[`horse-${currentHorseNumber}-class-${slug}`] = formData.has(`horse-${currentHorseNumber}-class-${slug}`);
+      });
     });
 
     const membership = String(formData.get("aeora-membership") || "none");
@@ -4151,18 +4166,20 @@ document.addEventListener("submit", async (event) => {
 
       const updatedResultDetails = {
         participant_name: [payload["participant-first-name"], payload["participant-last-name"]].filter(Boolean).join(" ") || "Name not supplied",
-        horse_name: payload[`horse-${horseNumber}-name`] || "Horse not supplied",
         riding_class: payload["riding-level"] || null,
         updated_at: new Date().toISOString(),
       };
-      await Promise.all(showClassSlugs.map((slug) => {
-        const entryId = `${registration.id}:${horseNumber}:${humanizeFieldName(slug)}`;
+      await Promise.all(horseNumbers.flatMap((currentHorseNumber) => showClassSlugs.map((slug) => {
+        const entryId = `${registration.id}:${currentHorseNumber}:${humanizeFieldName(slug)}`;
         return requestSupabase(`/rest/v1/show_results?event_id=eq.${encodeURIComponent(showEntryForm.dataset.eventId)}&entry_id=eq.${encodeURIComponent(entryId)}`, {
           method: "PATCH",
           headers: { Prefer: "return=minimal" },
-          body: JSON.stringify(updatedResultDetails),
+          body: JSON.stringify({
+            ...updatedResultDetails,
+            horse_name: payload[`horse-${currentHorseNumber}-name`] || "Horse not supplied",
+          }),
         }).catch(() => null);
-      }));
+      })));
 
       editingShowEntryId = null;
       closeModal();
