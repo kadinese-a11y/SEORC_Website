@@ -8,11 +8,17 @@ const showOrderStorageKey = "seorcShowClassOrder";
 const membershipConfirmationStorageKey = "seorcMembershipConfirmation";
 const adminPanelOpenStateStorageKey = "seorcAdminPanelOpenState";
 const defaultClubDayFee = 40;
-const defaultDayMembershipFee = 25;
+const defaultYoungRiderClubDayFee = 35;
+const defaultDayMembershipFee = 15;
+const defaultYoungRiderDayMembershipFee = 15;
 const defaultClinicFee = 170;
 const ridingLevelOptions = ["Professional", "Amateur", "Rookie", "Encouragement"];
 let annualMembershipFee = 20;
 let juniorMembershipFee = 15;
+let clubDayFee = defaultClubDayFee;
+let youngRiderClubDayFee = defaultYoungRiderClubDayFee;
+let dayMembershipFee = defaultDayMembershipFee;
+let youngRiderDayMembershipFee = defaultYoungRiderDayMembershipFee;
 const showObstacleCount = 14;
 let adminRegistrations = [];
 let showResults = [];
@@ -183,17 +189,23 @@ function writeEventOverride(event) {
 
 function getEvents() {
   if (remoteEvents.length) {
-    return [...remoteEvents].sort((a, b) => a.date.localeCompare(b.date));
+    return [...remoteEvents].filter((event) => !isPastExternalEvent(event)).sort((a, b) => a.date.localeCompare(b.date));
   }
   const overrides = readEventOverrides();
   return [...defaultEvents, ...readAdminEvents()]
     .map((event) => ({ ...event, ...(overrides[event.id] || {}) }))
+    .filter((event) => !isPastExternalEvent(event))
     .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function isPastExternalEvent(event, today = new Date().toISOString().slice(0, 10)) {
+  return event?.type?.startsWith("external-") && event.date && event.date < today;
 }
 
 async function loadSharedEvents() {
   try {
     remoteEvents = await requestSupabase("/rest/v1/events?cancelled_at=is.null&select=*&order=date.asc");
+    cleanupPastExternalEvents();
     renderCalendarEvents();
     renderNextEventPreview();
     populateEventSelects();
@@ -211,7 +223,14 @@ function applySelectedEventSettings() {
     const event = getEvents().find((item) => item.id === select?.value);
     const settings = event?.event_settings || {};
     const info = form?.querySelector("[data-event-options-info]");
-    if (type === "club" && info) { const fee = Number(settings.club_day_fee ?? defaultClubDayFee); form.dataset.eventFee = String(fee); info.textContent = event ? `Club day fee: ${formatCurrency(fee)}` : ""; updateClubDayTotal(form); }
+    if (type === "club" && info) {
+      form.dataset.eventFee = String(getClubDayStandardFee(event));
+      form.dataset.youngRiderFee = String(getClubDayYoungRiderFee(event));
+      form.dataset.dayMembershipFee = String(getClubDayMembershipFee(event));
+      form.dataset.youngRiderDayMembershipFee = String(getYoungRiderDayMembershipFee());
+      info.textContent = event ? `Club day fee: ${formatCurrency(getClubDayStandardFee(event))}. Young rider fee: ${formatCurrency(getClubDayYoungRiderFee(event))}. AEORA day member adult: ${formatCurrency(getClubDayMembershipFee(event))}. AEORA day member young rider: ${formatCurrency(getYoungRiderDayMembershipFee())}` : "";
+      updateClubDayTotal(form);
+    }
     if (type === "clinic" && info) { const fee = Number(settings.clinic_fee ?? defaultClinicFee); form.dataset.eventFee = String(fee); info.textContent = event ? `Clinic fee: ${formatCurrency(fee)}` : ""; updateClinicTotal(form); }
     if (type === "show" && form && event) {
       showClassSlugs.forEach((slug) => { const input = form.querySelector(`[name$="-class-${slug}"]`); const price = Number(settings.class_prices?.[slug] ?? getDefaultShowClassPrice(slug)); if (input) { input.dataset.price = price; input.closest("label")?.querySelector("strong")?.replaceChildren(formatCurrency(price)); } });
@@ -232,18 +251,60 @@ function applySelectedEventSettings() {
   });
 }
 
+function isYoungRiderClubDayRegistration(payload) {
+  return payload?.["club-day-young-rider"] === true;
+}
+
+function getClubDayStandardFee(event) {
+  return Number(event?.event_settings?.club_day_fee ?? clubDayFee);
+}
+
+function getClubDayYoungRiderFee(event) {
+  return Number(event?.event_settings?.club_day_young_rider_fee ?? youngRiderClubDayFee);
+}
+
+function getClubDayMembershipFee(event) {
+  return dayMembershipFee;
+}
+
+function getYoungRiderDayMembershipFee() {
+  return youngRiderDayMembershipFee;
+}
+
+function getDayMembershipFeeForPayload(payload = {}) {
+  return isYoungRiderDayMembershipPayload(payload) ? getYoungRiderDayMembershipFee() : dayMembershipFee;
+}
+
+function getClubDayBaseFeeForPayload(payload = {}, event) {
+  return isYoungRiderClubDayRegistration(payload) ? getClubDayYoungRiderFee(event) : getClubDayStandardFee(event);
+}
+
+function isYoungRiderDayMembershipPayload(payload = {}) {
+  if (isYoungRiderClubDayRegistration(payload)) return true;
+  if (String(payload["riding-level"] || "").toLowerCase().includes("young rider")) return true;
+  return Object.entries(payload).some(([key, value]) => {
+    return value === true && /^horse-\d+-class-young-rider$/.test(key);
+  });
+}
+
 function updateClubDayTotal(form) {
   if (!form?.matches(".registration-form") || !form.querySelector("[name='club-date']")) return;
-  const clubDayFee = Number(form.dataset.eventFee || defaultClubDayFee);
+  const selectedClubDayFee = form.querySelector("[name='club-day-young-rider']")?.checked
+    ? Number(form.dataset.youngRiderFee || youngRiderClubDayFee)
+    : Number(form.dataset.eventFee || clubDayFee);
   const dayMembershipAdded = form.querySelector("[name='club-day-day-membership']")?.checked;
-  const dayMembershipFee = dayMembershipAdded ? defaultDayMembershipFee : 0;
-  const total = clubDayFee + dayMembershipFee;
+  const selectedDayMembershipFee = dayMembershipAdded
+    ? form.querySelector("[name='club-day-young-rider']")?.checked
+      ? Number(form.dataset.youngRiderDayMembershipFee || youngRiderDayMembershipFee)
+      : Number(form.dataset.dayMembershipFee || dayMembershipFee)
+    : 0;
+  const total = selectedClubDayFee + selectedDayMembershipFee;
   const totalElement = form.querySelector("[data-club-day-total]");
   if (totalElement) totalElement.textContent = formatCurrency(total);
   const baseElement = form.querySelector("[data-club-day-base-fee]");
-  if (baseElement) baseElement.textContent = formatCurrency(clubDayFee);
+  if (baseElement) baseElement.textContent = formatCurrency(selectedClubDayFee);
   const membershipElement = form.querySelector("[data-club-day-membership-fee]");
-  if (membershipElement) membershipElement.textContent = formatCurrency(dayMembershipFee);
+  if (membershipElement) membershipElement.textContent = formatCurrency(selectedDayMembershipFee);
   form.dataset.calculatedTotal = String(total);
 }
 
@@ -256,7 +317,7 @@ function updateClinicTotal(form) {
 
 document.addEventListener("change", (event) => {
   if (event.target.matches("[name='club-date'], [name='clinic-date'], [name='show-date']")) applySelectedEventSettings();
-  if (event.target.matches("[name='club-day-day-membership']")) updateClubDayTotal(event.target.closest("form"));
+  if (event.target.matches("[name='club-day-day-membership'], [name='club-day-young-rider']")) updateClubDayTotal(event.target.closest("form"));
 });
 
 function escapeHTML(value) {
@@ -487,14 +548,31 @@ async function loadClubSettings() {
     const settings = await requestSupabase("/rest/v1/club_settings?select=setting_key,membership_fee");
     const adultFee = Number(settings.find((setting) => setting.setting_key === "annual_membership_fee")?.membership_fee);
     const juniorFee = Number(settings.find((setting) => setting.setting_key === "junior_membership_fee")?.membership_fee);
+    const clubFee = Number(settings.find((setting) => setting.setting_key === "club_day_fee")?.membership_fee);
+    const youngRiderFee = Number(settings.find((setting) => setting.setting_key === "club_day_young_rider_fee")?.membership_fee);
+    const legacyAeoraDayFee = Number(settings.find((setting) => setting.setting_key === "aeora_day_membership_fee")?.membership_fee);
+    const aeoraDayFee = Number(settings.find((setting) => setting.setting_key === "aeora_day_membership_adult_fee")?.membership_fee);
+    const youngRiderAeoraDayFee = Number(settings.find((setting) => setting.setting_key === "aeora_day_membership_young_rider_fee")?.membership_fee);
     if (Number.isFinite(adultFee)) annualMembershipFee = adultFee;
     if (Number.isFinite(juniorFee)) juniorMembershipFee = juniorFee;
+    if (Number.isFinite(clubFee)) clubDayFee = clubFee;
+    if (Number.isFinite(youngRiderFee)) youngRiderClubDayFee = youngRiderFee;
+    if (Number.isFinite(aeoraDayFee)) dayMembershipFee = aeoraDayFee;
+    else if (Number.isFinite(legacyAeoraDayFee)) dayMembershipFee = legacyAeoraDayFee;
+    if (Number.isFinite(youngRiderAeoraDayFee)) youngRiderDayMembershipFee = youngRiderAeoraDayFee;
+    else if (Number.isFinite(legacyAeoraDayFee)) youngRiderDayMembershipFee = legacyAeoraDayFee;
   } catch (error) {
     console.warn("Club pricing could not be loaded; using the standard fee.", error);
   }
   document.querySelectorAll("[data-annual-membership-form]").forEach(updateAnnualMembershipCost);
+  applySelectedEventSettings();
+  document.querySelectorAll(".registration-form").forEach(updateClubDayTotal);
   document.querySelectorAll("[data-club-settings-form] [name='membership_fee']").forEach((input) => { input.value = annualMembershipFee.toFixed(2); });
   document.querySelectorAll("[data-club-settings-form] [name='junior_membership_fee']").forEach((input) => { input.value = juniorMembershipFee.toFixed(2); });
+  document.querySelectorAll("[data-club-settings-form] [name='club_day_fee']").forEach((input) => { input.value = clubDayFee.toFixed(2); });
+  document.querySelectorAll("[data-club-settings-form] [name='club_day_young_rider_fee']").forEach((input) => { input.value = youngRiderClubDayFee.toFixed(2); });
+  document.querySelectorAll("[data-club-settings-form] [name='aeora_day_membership_adult_fee']").forEach((input) => { input.value = dayMembershipFee.toFixed(2); });
+  document.querySelectorAll("[data-club-settings-form] [name='aeora_day_membership_young_rider_fee']").forEach((input) => { input.value = youngRiderDayMembershipFee.toFixed(2); });
 }
 
 loadClubSettings();
@@ -524,13 +602,19 @@ document.addEventListener("submit", async (event) => {
   const formData = new FormData(form);
   const membershipFee = Number(formData.get("membership_fee"));
   const juniorFee = form.querySelector("[name='junior_membership_fee']") ? Number(formData.get("junior_membership_fee")) : juniorMembershipFee;
+  const aeoraDayFee = form.querySelector("[name='aeora_day_membership_adult_fee']") ? Number(formData.get("aeora_day_membership_adult_fee")) : dayMembershipFee;
+  const youngRiderAeoraDayFee = form.querySelector("[name='aeora_day_membership_young_rider_fee']") ? Number(formData.get("aeora_day_membership_young_rider_fee")) : youngRiderDayMembershipFee;
   try {
     await Promise.all([
       requestSupabase("/rest/v1/club_settings?setting_key=eq.annual_membership_fee", { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ membership_fee: membershipFee, updated_at: new Date().toISOString() }) }),
       requestSupabase("/rest/v1/club_settings?setting_key=eq.junior_membership_fee", { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ membership_fee: juniorFee, updated_at: new Date().toISOString() }) }),
+      requestSupabase("/rest/v1/club_settings?setting_key=eq.aeora_day_membership_adult_fee", { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ membership_fee: aeoraDayFee, updated_at: new Date().toISOString() }) }),
+      requestSupabase("/rest/v1/club_settings?setting_key=eq.aeora_day_membership_young_rider_fee", { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ membership_fee: youngRiderAeoraDayFee, updated_at: new Date().toISOString() }) }),
     ]);
     annualMembershipFee = membershipFee;
     juniorMembershipFee = juniorFee;
+    dayMembershipFee = aeoraDayFee;
+    youngRiderDayMembershipFee = youngRiderAeoraDayFee;
     await loadClubSettings();
     status.textContent = "Membership fees saved.";
   } catch (error) { status.textContent = `Could not save membership fees: ${error.message}`; }
@@ -944,14 +1028,27 @@ function needsDayMembershipForm(registration) {
   return false;
 }
 
+function getRegistrationEmail(registration) {
+  const payload = registration?.payload || {};
+  const email = payload["participant-email"] || payload["club-day-email"] || payload["clinic-email"];
+  return typeof email === "string" && email.includes("@") ? email.trim().toLowerCase() : "";
+}
+
+function getAttendeeEmailCount(eventId, registrations = adminRegistrations) {
+  return new Set(registrations
+    .filter((registration) => getRegistrationEventId(registration) === eventId)
+    .map(getRegistrationEmail)
+    .filter(Boolean)).size;
+}
+
 function getRegistrationRevenue(registration) {
   const payload = registration.payload || {};
   const calculatedTotal = Number(payload["calculated-total"]);
-  const dayMembershipTotal = needsDayMembershipForm(registration) ? defaultDayMembershipFee : 0;
+  const event = getEventDetails(getRegistrationEventId(registration));
+  const dayMembershipTotal = needsDayMembershipForm(registration) ? getDayMembershipFeeForPayload(payload) : 0;
 
   if (registration.form_type === "show_registration") {
     if (!isShowRegistrationPaid(registration)) return 0;
-    const event = getEventDetails(getRegistrationEventId(registration));
     return Math.max(getShowRegistrationTotal(registration, event) - getShowPassThroughTotal(registration, event), 0);
   }
 
@@ -964,7 +1061,7 @@ function getRegistrationRevenue(registration) {
   }
 
   if (registration.form_type === "club_day_registration" && payload["club-day-paid"] === true) {
-    return defaultClubDayFee + dayMembershipTotal;
+    return getClubDayBaseFeeForPayload(payload, event) + dayMembershipTotal;
   }
 
   return dayMembershipTotal;
@@ -973,7 +1070,8 @@ function getRegistrationRevenue(registration) {
 function getShowPricing(event) {
   const settings = event?.event_settings || {};
   return {
-    dayMembership: defaultDayMembershipFee,
+    dayMembership: dayMembershipFee,
+    youngRiderDayMembership: youngRiderDayMembershipFee,
     dinner: Number(settings.dinner_price ?? 30),
     poweredCamping: Number(settings.powered_camping_price ?? 30),
     unpoweredCamping: Number(settings.unpowered_camping_price ?? 20),
@@ -992,7 +1090,7 @@ function calculateShowRegistrationTotal(payload, event) {
       return classTotalForHorse + (payload[`horse-${horseNumber}-class-${slug}`] === true ? Number(classPrices[slug] ?? getDefaultShowClassPrice(slug)) : 0);
     }, 0);
   }, 0);
-  const dayMembership = (payload["aeora-day-membership"] === true || payload["aeora-membership"] === "day") ? pricing.dayMembership : 0;
+  const dayMembership = (payload["aeora-day-membership"] === true || payload["aeora-membership"] === "day") ? getDayMembershipFeeForPayload(payload) : 0;
   const dinner = getPayloadNumber(payload, "dinner-count") * pricing.dinner;
   const nightCount = getPayloadNumber(payload, "camping-night-count");
   const camping = (
@@ -1008,7 +1106,7 @@ function getShowPassThroughTotal(registration, event = getEventDetails(getRegist
   const payload = registration.payload || {};
   const pricing = getShowPricing(event);
   const nightCount = getPayloadNumber(payload, "camping-night-count");
-  const dayMembership = needsDayMembershipForm(registration) ? pricing.dayMembership : 0;
+  const dayMembership = needsDayMembershipForm(registration) ? getDayMembershipFeeForPayload(payload) : 0;
   const dinner = getPayloadNumber(payload, "dinner-count") * pricing.dinner;
   const camping = (
     (payload["camping-with-power"] === true ? pricing.poweredCamping : 0) +
@@ -1027,7 +1125,7 @@ function getShowFinancialSummary(event, registrations) {
     const pricing = getShowPricing(event);
     const payload = registration.payload || {};
     const nightCount = getPayloadNumber(payload, "camping-night-count");
-    const dayMembership = isShowRegistrationPaid(registration) && needsDayMembershipForm(registration) ? pricing.dayMembership : 0;
+    const dayMembership = isShowRegistrationPaid(registration) && needsDayMembershipForm(registration) ? getDayMembershipFeeForPayload(payload) : 0;
     const dinner = isShowRegistrationPaid(registration) ? getPayloadNumber(payload, "dinner-count") * pricing.dinner : 0;
     const campingAndYards = isShowRegistrationPaid(registration)
       ? (
@@ -1416,6 +1514,24 @@ function getMemberRenewalForYear(member, financialYear = getCurrentAustralianFin
   return (member?.membership_renewals || []).find((renewal) => renewal.financial_year === financialYear) || null;
 }
 
+function getMembershipFeeForType(type) {
+  return type === "junior" ? juniorMembershipFee : annualMembershipFee;
+}
+
+function getNextAustralianFinancialYear(date = new Date()) {
+  const current = getCurrentAustralianFinancialYear(date);
+  const startYear = Number(current.slice(0, 4)) + 1;
+  return `${startYear}-${String((startYear + 1) % 100).padStart(2, "0")}`;
+}
+
+function getPayableMembershipFinancialYears() {
+  return [getCurrentAustralianFinancialYear(), getNextAustralianFinancialYear()];
+}
+
+function getMembershipYearCount(member) {
+  return new Set((member?.membership_renewals || []).filter((renewal) => renewal.paid_at).map((renewal) => renewal.financial_year).filter(Boolean)).size;
+}
+
 function getMembershipStatus(member) {
   const renewal = getMemberRenewalForYear(member);
   return renewal?.paid_at ? "Active" : "Expired";
@@ -1432,6 +1548,28 @@ function getMemberSearchText(member) {
     member.membership_type,
     getMembershipStatus(member),
   ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function renderMembershipPaidYearControl(member) {
+  const currentFinancialYear = getCurrentAustralianFinancialYear();
+  const currentRenewal = getMemberRenewalForYear(member, currentFinancialYear);
+  const selectedFinancialYear = currentRenewal?.financial_year || currentFinancialYear;
+  const options = getPayableMembershipFinancialYears().map((financialYear) => {
+    const renewal = getMemberRenewalForYear(member, financialYear);
+    const label = renewal ? `${financialYear} (${renewal.paid_at ? "paid" : "unpaid"})` : `${financialYear} (new)`;
+    return `<option value="${escapeHTML(financialYear)}"${financialYear === selectedFinancialYear ? " selected" : ""}>${escapeHTML(label)}</option>`;
+  }).join("");
+
+  return `
+    <form class="membership-fy-form" data-member-paid-fy-form data-member-id="${escapeHTML(member.id)}">
+      <label><span class="sr-only">Paid financial year</span><select name="financial_year">${options}</select></label>
+      <div class="membership-fy-actions">
+        <button class="button primary compact-button" type="submit" name="paid_action" value="paid">Mark paid</button>
+        <button class="button secondary compact-button" type="submit" name="paid_action" value="unpaid">Mark unpaid</button>
+      </div>
+      <p class="form-status" data-member-paid-fy-status hidden></p>
+    </form>
+  `;
 }
 
 function renderMembershipDirectory() {
@@ -1452,7 +1590,7 @@ function renderMembershipDirectory() {
   }
 
   container.innerHTML = renderAdminTable({
-    columns: ["Membership number", "Name", "Riding level", "Status"],
+    columns: ["Membership number", "Name", "Riding level", "Current FY", "Paid FY"],
     className: "memberships-table",
     rows: members.map((member) => {
       const status = getMembershipStatus(member);
@@ -1464,6 +1602,7 @@ function renderMembershipDirectory() {
         `<button class="admin-table-title-link table-button-link" type="button" data-open-member-modal="${escapeHTML(member.id)}"><strong>${escapeHTML(memberName)}</strong></button><small>${escapeHTML(member.email || "No email supplied")}</small>`,
         escapeHTML(member.riding_level || "Not supplied"),
         `<span class="status-pill ${status === "Active" ? "status-active" : "status-expired"}">${status}</span><small>${renewal ? `${escapeHTML(renewal.financial_year)} · ${renewal.paid_at ? "Paid" : "Unpaid"}` : `No ${escapeHTML(getCurrentAustralianFinancialYear())} renewal`}</small>`,
+        renderMembershipPaidYearControl(member),
       ];
     }),
   });
@@ -1483,51 +1622,62 @@ document.addEventListener("click", async (event) => { const button = event.targe
 
 document.addEventListener("click", async (event) => { const button = event.target.closest("[data-mark-membership-unpaid]"); if (!button || !window.confirm("Mark this membership renewal as unpaid?")) return; await requestSupabase(`/rest/v1/membership_renewals?id=eq.${encodeURIComponent(button.dataset.markMembershipUnpaid)}`, { method: "PATCH", body: JSON.stringify({ paid_at: null }) }); await loadMembershipRenewalsPage(); });
 
-function memberDetailLine(label, value) {
-  return `<div><dt>${escapeHTML(label)}</dt><dd>${escapeHTML(value || "Not supplied")}</dd></div>`;
+async function updateMemberPaidFinancialYear(memberId, financialYear, paid) {
+  const member = membershipDirectoryMembers.find((item) => item.id === memberId) || await getMemberDetails(memberId);
+  const renewal = getMemberRenewalForYear(member, financialYear);
+  const body = {
+    membership_type: member.membership_type || "adult",
+    amount: getMembershipFeeForType(member.membership_type),
+    paid_at: paid ? new Date().toISOString() : null,
+  };
+  if (renewal) {
+    await requestSupabase(`/rest/v1/membership_renewals?id=eq.${encodeURIComponent(renewal.id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
+    return;
+  }
+  if (!paid) return;
+  await requestSupabase("/rest/v1/membership_renewals", {
+    method: "POST",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      member_id: memberId,
+      financial_year: financialYear,
+      ...body,
+    }),
+  });
 }
+
+document.addEventListener("submit", async (event) => {
+  const form = event.target.closest("[data-member-paid-fy-form]");
+  if (!form) return;
+  event.preventDefault();
+  const submitter = event.submitter;
+  const paid = submitter?.value !== "unpaid";
+  const status = form.querySelector("[data-member-paid-fy-status]");
+  const financialYear = String(new FormData(form).get("financial_year") || getCurrentAustralianFinancialYear());
+  if (!paid && !window.confirm(`Mark ${financialYear} as unpaid for this member?`)) return;
+  if (status) {
+    status.hidden = false;
+    status.textContent = paid ? "Saving paid year..." : "Saving unpaid year...";
+  }
+  try {
+    await updateMemberPaidFinancialYear(form.dataset.memberId, financialYear, paid);
+    await loadMembershipRenewalsPage();
+  } catch (error) {
+    if (status) status.textContent = `Could not update FY: ${error.message}`;
+  }
+});
 
 function hasGreenHorse(member) {
   const value = String(member?.horse_level || "").toLowerCase();
   return value === "green" || value === "true" || value === "yes";
 }
 
-function getCurrentMembershipRenewal(member) {
-  return [...(member?.membership_renewals || [])].sort((a, b) => String(b.financial_year).localeCompare(String(a.financial_year)))[0] || null;
-}
-
 function renderMembershipDetailContent(member) {
-  const renewal = getCurrentMembershipRenewal(member);
-  const memberName = `${member.first_name || ""} ${member.last_name || ""}`.trim() || "Member";
-  const emergencyName = [member.emergency_first_name, member.emergency_last_name].filter(Boolean).join(" ");
-
   return `
     <div class="admin-actions">
-      <button class="button primary form-submit" type="button" data-edit-member-detail>Edit details</button>
-      ${renewal ? (renewal.paid_at ? `<button class="button secondary form-submit" type="button" data-member-detail-unpaid="${escapeHTML(renewal.id)}">Mark unpaid</button>` : `<button class="button secondary form-submit" type="button" data-member-detail-paid="${escapeHTML(renewal.id)}">Mark paid</button>`) : ""}
       <button class="button secondary form-submit" type="button" data-delete-member="${escapeHTML(member.id)}">Delete member</button>
     </div>
-    <section class="show-class-panel">
-      <div class="form-heading">
-        <p class="eyebrow">Membership details</p>
-        <h2>${escapeHTML(member.membership_number)}</h2>
-      </div>
-      <dl class="show-extra-summary member-detail-summary">
-        ${memberDetailLine("Membership type", humanizeFieldName(member.membership_type || "adult"))}
-        ${memberDetailLine("Current renewal", renewal ? `${renewal.financial_year} · ${formatCurrency(renewal.amount)} · ${renewal.paid_at ? "Paid" : "Unpaid"}` : "No renewal recorded")}
-        ${memberDetailLine("Email", member.email)}
-        ${memberDetailLine("Phone", member.phone)}
-        ${memberDetailLine("Birthday", member.birthday ? formatDateParts(member.birthday).label : "")}
-        ${memberDetailLine("Address", member.address)}
-        ${memberDetailLine("Riding level", member.riding_level)}
-        ${memberDetailLine("Green horse", hasGreenHorse(member) ? "Yes" : "No")}
-        ${memberDetailLine("AEORA membership", member.aeora_membership_acknowledged ? "Ticked" : "Not ticked")}
-        ${memberDetailLine("Emergency contact", emergencyName)}
-        ${memberDetailLine("Emergency phone", member.emergency_phone)}
-        ${memberDetailLine("Email notifications", member.email_notifications ? "Yes" : "No")}
-      </dl>
-    </section>
-    <form class="form-panel" data-member-detail-form data-member-id="${escapeHTML(member.id)}" hidden>
+    <form class="form-panel" data-member-detail-form data-member-id="${escapeHTML(member.id)}">
       <div class="form-heading"><p class="eyebrow">Edit member</p><h2>Update membership details</h2></div>
       <div class="form-grid">
         <label>Membership type<select name="membership_type"><option value="adult"${member.membership_type === "adult" ? " selected" : ""}>Adult</option><option value="junior"${member.membership_type === "junior" ? " selected" : ""}>Junior</option></select></label>
@@ -1545,7 +1695,7 @@ function renderMembershipDetailContent(member) {
       <label class="check-row"><input name="horse_level" type="checkbox" value="Green"${hasGreenHorse(member) ? " checked" : ""}><span>Green horse</span></label>
       <label class="check-row"><input name="aeora_membership_acknowledged" type="checkbox"${member.aeora_membership_acknowledged ? " checked" : ""}><span>AEORA membership confirmed</span></label>
       <label class="check-row"><input name="email_notifications" type="checkbox"${member.email_notifications ? " checked" : ""}><span>Email notifications</span></label>
-      <div class="admin-actions"><button class="button primary form-submit" type="submit">Save member details</button><button class="button secondary form-submit" type="button" data-cancel-member-detail-edit>Cancel</button></div>
+      <div class="admin-actions"><button class="button primary form-submit" type="submit">Save member details</button><button class="button secondary form-submit" type="button" data-close-modal>Close</button></div>
       <p class="form-status" data-member-detail-status></p>
     </form>
   `;
@@ -1561,11 +1711,12 @@ async function getMemberDetails(memberId) {
 async function openMembershipModal(memberId) {
   const member = await getMemberDetails(memberId);
   const memberName = `${member.first_name || ""} ${member.last_name || ""}`.trim() || "Member";
+  const membershipYears = getMembershipYearCount(member);
   openModal(`
     <div class="form-heading modal-heading">
       <p class="eyebrow">Membership details</p>
       <h2 id="modal-title">${escapeHTML(memberName)}</h2>
-      <p>${escapeHTML(member.membership_number || "No membership number recorded")} · ${escapeHTML(humanizeFieldName(member.membership_type || "adult"))} member</p>
+      <p>${escapeHTML(member.membership_number || "No membership number recorded")} · ${escapeHTML(humanizeFieldName(member.membership_type || "adult"))} member · ${membershipYears ? `${membershipYears} financial year${membershipYears === 1 ? "" : "s"} on record` : "No paid years on record"}</p>
     </div>
     ${renderMembershipDetailContent(member)}
   `);
@@ -1580,43 +1731,6 @@ document.addEventListener("click", async (event) => {
     } catch (error) {
       openModal(`<p class="empty-state">Could not load member details: ${escapeHTML(error.message)}</p>`);
     }
-    return;
-  }
-  const editButton = event.target.closest("[data-edit-member-detail]");
-  if (editButton) {
-    document.querySelector("[data-member-detail-form]")?.removeAttribute("hidden");
-    editButton.setAttribute("hidden", "");
-    return;
-  }
-  const cancelButton = event.target.closest("[data-cancel-member-detail-edit]");
-  if (cancelButton) {
-    document.querySelector("[data-member-detail-form]")?.setAttribute("hidden", "");
-    document.querySelector("[data-edit-member-detail]")?.removeAttribute("hidden");
-    return;
-  }
-  const paidButton = event.target.closest("[data-member-detail-paid]");
-  if (paidButton) {
-    await requestSupabase(`/rest/v1/membership_renewals?id=eq.${encodeURIComponent(paidButton.dataset.memberDetailPaid)}`, { method: "PATCH", body: JSON.stringify({ paid_at: new Date().toISOString() }) });
-    const modalForm = document.querySelector("[data-modal-root]:not([hidden]) [data-member-detail-form]");
-    if (modalForm) {
-      await loadMembershipRenewalsPage();
-      await openMembershipModal(modalForm.dataset.memberId);
-      return;
-    }
-    await loadMembershipRenewalsPage();
-    return;
-  }
-  const unpaidButton = event.target.closest("[data-member-detail-unpaid]");
-  if (unpaidButton) {
-    if (!window.confirm("Mark this membership renewal as unpaid?")) return;
-    await requestSupabase(`/rest/v1/membership_renewals?id=eq.${encodeURIComponent(unpaidButton.dataset.memberDetailUnpaid)}`, { method: "PATCH", body: JSON.stringify({ paid_at: null }) });
-    const modalForm = document.querySelector("[data-modal-root]:not([hidden]) [data-member-detail-form]");
-    if (modalForm) {
-      await loadMembershipRenewalsPage();
-      await openMembershipModal(modalForm.dataset.memberId);
-      return;
-    }
-    await loadMembershipRenewalsPage();
     return;
   }
   const deleteButton = event.target.closest("[data-delete-member]");
@@ -1790,6 +1904,7 @@ function isShowJudgingComplete(eventId, registrations, results) {
 function renderEventEditForm(event, judgingComplete = false) {
   if (event.id === "club-members") return "";
   const isExternal = event.type.startsWith("external-");
+  const attendeeEmailCount = getAttendeeEmailCount(event.id);
 
   return `
     <form class="form-panel event-edit-form" data-event-edit-form data-event-id="${escapeHTML(event.id)}">
@@ -1818,6 +1933,7 @@ function renderEventEditForm(event, judgingComplete = false) {
       ${isExternal ? `<div class="form-grid"><label>Provider link<input name="provider_url" type="url" value="${escapeHTML(event.event_settings?.provider_url || "")}" required></label><label>Cost<input name="external_cost" type="text" value="${escapeHTML(event.event_settings?.external_cost || "")}" placeholder="e.g. $45, see provider" required></label></div>` : ""}
       <div class="admin-actions">
         <button class="button primary form-submit" type="submit">Save Event Details</button>
+        ${!isExternal ? `<button class="button secondary form-submit" type="button" data-email-attendees data-event-id="${escapeHTML(event.id)}" data-event-title="${escapeHTML(event.title)}">Email attendees${attendeeEmailCount ? ` (${attendeeEmailCount})` : ""}</button>` : ""}
         ${!isExternal ? `<button class="button secondary form-submit" type="button" data-toggle-event-registrations data-event-id="${escapeHTML(event.id)}" data-registrations-closed="${registrationsAreClosed(event) ? "true" : "false"}">${registrationsAreClosed(event) ? "Re-open registrations" : "Close registrations"}</button>` : ""}
         ${isExternal ? `<button class="button secondary form-submit" type="button" data-delete-shared-event="${escapeHTML(event.id)}">Delete listing</button>` : `<button class="button secondary form-submit" type="button" data-cancel-event data-event-id="${escapeHTML(event.id)}" data-event-title="${escapeHTML(event.title)}">Cancel &amp; notify attendees</button>`}
         ${event.type === "show" ? `<button class="button primary form-submit" type="button" data-publish-event-results data-event-id="${escapeHTML(event.id)}"${judgingComplete ? "" : " disabled"}>${judgingComplete ? "Publish Scores" : "Scores to be completed"}</button>` : ""}
@@ -1832,7 +1948,7 @@ function renderEventPricingForm(event) {
   if (!["club", "clinic", "show"].includes(event.type)) return "";
   const settings = event.event_settings || {};
   const fields = event.type === "club"
-    ? `<label>Club day fee<input name="club_day_fee" type="number" min="0" step="0.01" value="${Number(settings.club_day_fee ?? defaultClubDayFee)}"></label>`
+    ? `<label>Club day fee<input name="club_day_fee" type="number" min="0" step="0.01" value="${getClubDayStandardFee(event)}"></label><label>Young rider club day fee<input name="club_day_young_rider_fee" type="number" min="0" step="0.01" value="${getClubDayYoungRiderFee(event)}"></label>`
     : event.type === "clinic"
       ? `<label>Clinic fee<input name="clinic_fee" type="number" min="0" step="0.01" value="${Number(settings.clinic_fee ?? defaultClinicFee)}"></label>`
     : `<fieldset class="pricing-section"><legend>Dinner</legend><div class="form-grid"><label>Dinner ticket price<input name="dinner_price" type="number" min="0" step="0.01" value="${Number(settings.dinner_price ?? 30)}"></label><label>Dinner vendor link<input name="dinner_vendor_url" type="url" value="${escapeHTML(settings.dinner_vendor_url || "")}" placeholder="https://..."></label><label>Custom dinner information<textarea name="custom_information" rows="4" placeholder="Information shown in the dinner section">${escapeHTML(settings.custom_information || "")}</textarea></label></div></fieldset><fieldset class="pricing-section"><legend>Camping and yards</legend><div class="form-grid"><label>Camping with power / night<input name="powered_camping_price" type="number" min="0" step="0.01" value="${Number(settings.powered_camping_price ?? 30)}"></label><label>Camping without power / night<input name="unpowered_camping_price" type="number" min="0" step="0.01" value="${Number(settings.unpowered_camping_price ?? 20)}"></label><label>Yard price<input name="yard_price" type="number" min="0" step="0.01" value="${Number(settings.yard_price ?? 5)}"></label></div></fieldset><fieldset class="pricing-section"><legend>Classes</legend><div class="form-grid">${showClassSlugs.map((slug) => `<label>${humanizeFieldName(slug)} class<input name="class_${slug}" type="number" min="0" step="0.01" value="${Number(settings.class_prices?.[slug] ?? getDefaultShowClassPrice(slug))}"></label>`).join("")}</div></fieldset>`;
@@ -1846,6 +1962,7 @@ function renderShowFinancePanel(eventId, event, registrations, expenses = []) {
   const totalPaidOut = summary.dayMemberships + summary.campingAndYards + summary.dinner + expenseTotal;
   const showRevenue = summary.totalCollected - totalPaidOut;
   const payoutRows = [
+    { label: "Entry revenue", date: "", amount: summary.clubRevenue, action: "<small>Auto calculated from paid entries</small>" },
     { label: "AEORA day memberships", date: "", amount: summary.dayMemberships, action: "" },
     { label: "Camping and yards", date: "", amount: summary.campingAndYards, action: "" },
     { label: "Dinner tickets", date: "", amount: summary.dinner, action: "" },
@@ -1933,10 +2050,12 @@ function renderClubMembersDetail(registrations) {
 }
 
 function renderClubDayDetail(group) {
-  const clubDayFee = Number(group.event.event_settings?.club_day_fee ?? defaultClubDayFee);
+  const standardFee = getClubDayStandardFee(group.event);
+  const youngRiderFee = getClubDayYoungRiderFee(group.event);
+  const selectedDayMembershipFee = getClubDayMembershipFee(group.event);
   return `
     <div class="admin-actions"><button class="button secondary form-submit" type="button" data-download-attendee-list data-event-id="${escapeHTML(group.event.id)}">Download attendee list</button></div>
-    <p class="field-note">Club day fee: ${formatCurrency(clubDayFee)}. Each rider needing a day membership adds ${formatCurrency(defaultDayMembershipFee)} to their event total.</p>
+    <p class="field-note">Club day fee: ${formatCurrency(standardFee)}. Young rider fee: ${formatCurrency(youngRiderFee)}. AEORA day member adult: ${formatCurrency(selectedDayMembershipFee)}. AEORA day member young rider: ${formatCurrency(getYoungRiderDayMembershipFee())}.</p>
     ${renderEventPaymentSection(group.event.id, group, { includeTransfer: true })}
   `;
 }
@@ -1950,6 +2069,28 @@ function renderClinicDetail(group) {
   `;
 }
 
+function renderEmailAttendeesModal(eventId, eventTitle) {
+  const recipientCount = getAttendeeEmailCount(eventId);
+  const defaultSubject = eventTitle ? `Update for ${eventTitle}` : "SEORC event update";
+
+  return `
+    <form class="form-panel modal-edit-panel" data-email-attendees-form data-event-id="${escapeHTML(eventId)}">
+      <div class="form-heading modal-heading">
+        <p class="eyebrow">Email attendees</p>
+        <h2 id="modal-title">${escapeHTML(eventTitle || "Event update")}</h2>
+        <p>${recipientCount} attendee email${recipientCount === 1 ? "" : "s"} will receive this update.</p>
+      </div>
+      <label>Subject<input name="subject" type="text" value="${escapeHTML(defaultSubject)}" required></label>
+      <label>Message<textarea name="message" rows="8" placeholder="Write the update attendees need to receive." required></textarea></label>
+      <div class="admin-actions">
+        <button class="button primary form-submit" type="submit"${recipientCount ? "" : " disabled"}>Send email</button>
+        <button class="button secondary form-submit" type="button" data-close-modal>Cancel</button>
+      </div>
+      <p class="form-status" data-email-attendees-status></p>
+    </form>
+  `;
+}
+
 function renderEventRegistrationEditPanel(registration) {
   const payload = registration.payload || {};
   const isClinic = registration.form_type === "clinic_registration";
@@ -1959,6 +2100,7 @@ function renderEventRegistrationEditPanel(registration) {
   const horseField = isClinic ? "clinic-horse-name" : "club-day-horse-name";
   const paidField = isClinic ? "clinic-paid" : "club-day-paid";
   const dayMembershipField = isClinic ? "clinic-day-membership" : "club-day-day-membership";
+  const youngRiderField = "club-day-young-rider";
 
   return `
     <form class="form-panel modal-edit-panel" data-event-registration-edit-form data-registration-id="${escapeHTML(registration.id)}" data-event-id="${escapeHTML(eventId)}" data-form-type="${escapeHTML(registration.form_type)}">
@@ -1975,6 +2117,7 @@ function renderEventRegistrationEditPanel(registration) {
         <label>Horse name<input name="${horseField}" value="${escapeHTML(payload[horseField] || "")}" required></label>
       </div>
       <label class="check-row"><input name="${paidField}" type="checkbox"${payload[paidField] === true ? " checked" : ""}><span>Paid</span></label>
+      ${isClinic ? "" : `<label class="check-row"><input name="${youngRiderField}" type="checkbox"${payload[youngRiderField] === true ? " checked" : ""}><span>Young rider: under 13 years old and older than 5 years old</span></label>`}
       <label class="check-row"><input name="${dayMembershipField}" type="checkbox"${payload[dayMembershipField] === true ? " checked" : ""}><span>Needs AEORA day membership form</span></label>
       <div class="admin-actions">
         <button class="button primary form-submit" type="submit">Save registration</button>
@@ -1996,7 +2139,7 @@ function getEventRegistrationPayableTotal(registration, event = getEventDetails(
   if (registration.form_type === "show_registration") return getShowRegistrationTotal(registration, event);
   const calculatedTotal = Number(registration.payload?.["calculated-total"]);
   if (Number.isFinite(calculatedTotal) && calculatedTotal > 0) return calculatedTotal;
-  if (registration.form_type === "club_day_registration") return Number(event.event_settings?.club_day_fee ?? defaultClubDayFee) + (needsDayMembershipForm(registration) ? defaultDayMembershipFee : 0);
+  if (registration.form_type === "club_day_registration") return getClubDayBaseFeeForPayload(registration.payload || {}, event) + (needsDayMembershipForm(registration) ? getDayMembershipFeeForPayload(registration.payload || {}) : 0);
   if (registration.form_type === "clinic_registration") return Number(event.event_settings?.clinic_fee ?? defaultClinicFee);
   return 0;
 }
@@ -2101,13 +2244,16 @@ function renderShowEntryEditPanel(eventId, group) {
   const pricing = getShowPricing(group.event);
   const classPrices = group.event?.event_settings?.class_prices || {};
   const participantName = getParticipantName(registration);
-  const horseNumbers = horseNumber === "all" ? (getShowHorseNumbers(payload).length ? getShowHorseNumbers(payload) : ["1"]) : [horseNumber];
+  const allHorseNumbers = getShowHorseNumbers(payload);
+  const horseNumbers = horseNumber === "all" ? (allHorseNumbers.length ? allHorseNumbers : ["1"]) : [horseNumber];
+  const canDeleteHorse = allHorseNumbers.length > 1;
   const membershipValue = payload["aeora-membership"] || (payload["aeora-day-membership"] ? "day" : payload["aeora-annual-membership"] ? "annual" : "none");
   const horseFieldsets = horseNumbers.map((currentHorseNumber) => {
     const horseNameField = `horse-${currentHorseNumber}-name`;
     return `
       <fieldset>
         <legend>Horse ${escapeHTML(currentHorseNumber)} and classes</legend>
+        ${canDeleteHorse ? `<div class="admin-actions horse-edit-actions"><button class="button secondary compact-button" type="button" data-delete-show-horse="${escapeHTML(currentHorseNumber)}" data-registration-id="${escapeHTML(registration.id)}" data-event-id="${escapeHTML(eventId)}">Delete horse</button></div>` : ""}
         <label>Horse name<input name="${escapeHTML(horseNameField)}" type="text" value="${escapeHTML(payload[horseNameField] || "")}" required></label>
         <div class="checkbox-grid">
           ${showClassSlugs.map((slug) => {
@@ -3211,6 +3357,27 @@ async function deleteEventData(eventId) {
   adminRegistrations = adminRegistrations.filter((registration) => !registrationIds.includes(registration.id));
 }
 
+async function cleanupPastExternalEvents() {
+  const expiredExternalEvents = remoteEvents.filter((event) => isPastExternalEvent(event));
+  if (!expiredExternalEvents.length) return;
+
+  const expiredIds = expiredExternalEvents.map((event) => event.id).filter(Boolean);
+
+  remoteEvents = remoteEvents.filter((event) => !expiredIds.includes(event.id));
+
+  try {
+    await Promise.all(expiredIds.map(async (eventId) => {
+      await deleteEventData(eventId);
+      await requestSupabase(`/rest/v1/events?id=eq.${encodeURIComponent(eventId)}`, {
+        method: "DELETE",
+        headers: { Prefer: "return=minimal" },
+      });
+    }));
+  } catch (error) {
+    console.warn("Past external events could not be cleaned up automatically.", error);
+  }
+}
+
 async function deleteShowRegistration(eventId, registrationId) {
   await requestSupabase(`/rest/v1/show_results?event_id=eq.${encodeURIComponent(eventId)}&entry_id=like.${encodeURIComponent(`${registrationId}:*`)}`, {
     method: "DELETE",
@@ -3225,6 +3392,30 @@ async function deleteShowRegistration(eventId, registrationId) {
 
   adminRegistrations = adminRegistrations.filter((registration) => registration.id !== registrationId);
   showResults = showResults.filter((result) => !(result.event_id === eventId && String(result.entry_id || "").startsWith(`${registrationId}:`)));
+}
+
+async function deleteShowHorse(eventId, registration, horseNumber) {
+  const payload = { ...(registration.payload || {}) };
+  const currentHorseNumbers = getShowHorseNumbers(payload);
+
+  if (currentHorseNumbers.length <= 1) throw new Error("Entries need at least one horse.");
+
+  Object.keys(payload).forEach((key) => {
+    if (key.startsWith(`horse-${horseNumber}-`)) delete payload[key];
+  });
+
+  payload["calculated-total"] = calculateShowRegistrationTotal(payload, getEventDetails(eventId));
+
+  await requestSupabase(`/rest/v1/show_results?event_id=eq.${encodeURIComponent(eventId)}&entry_id=like.${encodeURIComponent(`${registration.id}:${horseNumber}:*`)}`, {
+    method: "DELETE",
+    headers: { Prefer: "return=minimal" },
+  }).catch((error) => {
+    console.warn("Linked show result cleanup failed; deleting horse anyway:", error);
+  });
+
+  await patchRegistrationPayload(registration.id, payload, { returning: "representation" });
+  registration.payload = payload;
+  showResults = showResults.filter((result) => !(result.event_id === eventId && String(result.entry_id || "").startsWith(`${registration.id}:${horseNumber}:`)));
 }
 
 async function deleteRegistration(registrationId) {
@@ -3541,7 +3732,7 @@ if (adminForm) {
       title: formData.get("title").trim(),
       location: formData.get("location").trim(),
       description: formData.get("description").trim(),
-      event_settings: String(formData.get("type")).startsWith("external-") ? { provider_url: String(formData.get("provider_url") || "").trim(), external_cost: String(formData.get("external_cost") || "").trim() } : String(formData.get("type")) === "club" ? { club_day_fee: defaultClubDayFee } : String(formData.get("type")) === "clinic" ? { clinic_fee: defaultClinicFee } : {},
+      event_settings: String(formData.get("type")).startsWith("external-") ? { provider_url: String(formData.get("provider_url") || "").trim(), external_cost: String(formData.get("external_cost") || "").trim() } : String(formData.get("type")) === "club" ? { club_day_fee: clubDayFee, club_day_young_rider_fee: youngRiderClubDayFee } : String(formData.get("type")) === "clinic" ? { clinic_fee: defaultClinicFee } : {},
     };
 
     try {
@@ -3730,6 +3921,12 @@ document.addEventListener("click", async (event) => {
   }
 });
 
+document.addEventListener("click", (event) => {
+  const emailButton = event.target.closest("[data-email-attendees]");
+  if (!emailButton) return;
+  openModal(renderEmailAttendeesModal(emailButton.dataset.eventId || "", emailButton.dataset.eventTitle || ""));
+});
+
 document.addEventListener("click", async (event) => {
   const toggleButton = event.target.closest("[data-toggle-event-registrations]");
   if (!toggleButton) return;
@@ -3792,6 +3989,43 @@ document.addEventListener("click", (event) => {
   openModal(renderShowEntryEditPanel(eventId, group));
 });
 
+document.addEventListener("click", async (event) => {
+  const deleteButton = event.target.closest("[data-delete-show-horse]");
+  if (!deleteButton) return;
+
+  const eventId = deleteButton.dataset.eventId || "";
+  const registration = adminRegistrations.find((item) => item.id === deleteButton.dataset.registrationId);
+  const horseNumber = deleteButton.dataset.deleteShowHorse;
+  const payload = registration?.payload || {};
+  const horseName = payload[`horse-${horseNumber}-name`] || `Horse ${horseNumber}`;
+  const status = deleteButton.closest("form")?.querySelector("[data-show-entry-edit-status]");
+
+  if (!registration || !horseNumber) return;
+  if (!window.confirm(`Delete ${horseName} from this entry? This removes the horse, selected classes, and linked scoring results.`)) return;
+
+  deleteButton.disabled = true;
+
+  try {
+    await deleteShowHorse(eventId, registration, horseNumber);
+    await loadRegistrations();
+
+    const updatedRegistration = adminRegistrations.find((item) => item.id === registration.id);
+    const remainingHorseNumbers = getShowHorseNumbers(updatedRegistration?.payload || {});
+    const group = groupRegistrationsByEvent(adminRegistrations)[eventId];
+
+    if (updatedRegistration && group) {
+      editingShowEntryId = `${updatedRegistration.id}:${remainingHorseNumbers.length > 1 ? "all" : remainingHorseNumbers[0] || "all"}:payment`;
+      openModal(renderShowEntryEditPanel(eventId, group));
+    } else {
+      editingShowEntryId = null;
+      closeModal();
+    }
+  } catch (error) {
+    deleteButton.disabled = false;
+    if (status) status.textContent = `Could not delete horse: ${error.message}`;
+  }
+});
+
 document.addEventListener("click", (event) => {
   if (!event.target.closest("[data-cancel-show-entry-edit]")) return;
   editingShowEntryId = null;
@@ -3804,6 +4038,41 @@ document.addEventListener("click", (event) => {
   const registration = adminRegistrations.find((item) => item.id === transferButton.dataset.openTransferModal);
   if (!registration) return;
   openModal(renderTransferAttendeeModal(registration, transferButton.dataset.fromEvent));
+});
+
+document.addEventListener("submit", async (event) => {
+  const emailForm = event.target.closest("[data-email-attendees-form]");
+  if (!emailForm) return;
+
+  event.preventDefault();
+  const status = emailForm.querySelector("[data-email-attendees-status]");
+  const submitButton = emailForm.querySelector("[type='submit']");
+  const formData = new FormData(emailForm);
+  const config = getSupabaseConfig();
+  const token = await getFreshAdminAccessToken();
+
+  if (!config || !token) return;
+  if (status) status.textContent = "Sending attendee email...";
+  if (submitButton) submitButton.disabled = true;
+
+  try {
+    const response = await fetch(`${config.url}/functions/v1/email-attendees`, {
+      method: "POST",
+      headers: { apikey: config.anonKey, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventId: emailForm.dataset.eventId,
+        subject: String(formData.get("subject") || ""),
+        message: String(formData.get("message") || ""),
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Attendee email failed");
+    if (status) status.textContent = `${result.sentCount || 0} of ${result.recipientCount || 0} attendee email${result.recipientCount === 1 ? "" : "s"} sent.`;
+    if (result.failedCount) alert(`${result.sentCount || 0} sent, ${result.failedCount} failed. Please check the Resend logs.`);
+  } catch (error) {
+    if (status) status.textContent = `Could not send email: ${error.message}`;
+    if (submitButton) submitButton.disabled = false;
+  }
 });
 
 document.addEventListener("submit", async (event) => {
@@ -4043,7 +4312,7 @@ document.addEventListener("submit", async (event) => {
     const eventId = pricingForm.dataset.eventId;
     const currentEvent = getEventDetails(eventId);
     const classPrices = Object.fromEntries(showClassSlugs.map((slug) => [slug, Number(formData.get(`class_${slug}`) || 0)]));
-    const settings = currentEvent.type === "club" ? { club_day_fee: Number(formData.get("club_day_fee") || 0) } : currentEvent.type === "clinic" ? { ...(currentEvent.event_settings || {}), clinic_fee: Number(formData.get("clinic_fee") || 0) } : { dinner_price: Number(formData.get("dinner_price") || 0), powered_camping_price: Number(formData.get("powered_camping_price") || 0), unpowered_camping_price: Number(formData.get("unpowered_camping_price") || 0), yard_price: Number(formData.get("yard_price") || 0), dinner_vendor_url: String(formData.get("dinner_vendor_url") || "").trim(), custom_information: String(formData.get("custom_information") || "").trim(), class_prices: classPrices };
+    const settings = currentEvent.type === "club" ? { club_day_fee: Number(formData.get("club_day_fee") || 0), club_day_young_rider_fee: Number(formData.get("club_day_young_rider_fee") || 0) } : currentEvent.type === "clinic" ? { ...(currentEvent.event_settings || {}), clinic_fee: Number(formData.get("clinic_fee") || 0) } : { dinner_price: Number(formData.get("dinner_price") || 0), powered_camping_price: Number(formData.get("powered_camping_price") || 0), unpowered_camping_price: Number(formData.get("unpowered_camping_price") || 0), yard_price: Number(formData.get("yard_price") || 0), dinner_vendor_url: String(formData.get("dinner_vendor_url") || "").trim(), custom_information: String(formData.get("custom_information") || "").trim(), class_prices: classPrices };
     const status = pricingForm.querySelector("[data-event-pricing-status]");
     try {
       await updateEventSettings(eventId, settings);
@@ -4097,6 +4366,7 @@ document.addEventListener("submit", async (event) => {
     const horseField = isClinic ? "clinic-horse-name" : "club-day-horse-name";
     const paidField = isClinic ? "clinic-paid" : "club-day-paid";
     const dayMembershipField = isClinic ? "clinic-day-membership" : "club-day-day-membership";
+    const youngRiderField = "club-day-young-rider";
     const eventDetails = getEventDetails(eventRegistrationForm.dataset.eventId);
 
     [`${prefix}-first-name`, `${prefix}-last-name`, `${prefix}-email`, `${prefix}-phone`, horseField].forEach((field) => {
@@ -4104,12 +4374,12 @@ document.addEventListener("submit", async (event) => {
     });
     payload[paidField] = formData.has(paidField);
     payload[dayMembershipField] = formData.has(dayMembershipField);
+    if (!isClinic) payload[youngRiderField] = formData.has(youngRiderField);
 
     if (isClinic) {
       payload["calculated-total"] = Number(eventDetails.event_settings?.clinic_fee ?? defaultClinicFee);
     } else {
-      const clubDayFee = Number(eventDetails.event_settings?.club_day_fee ?? defaultClubDayFee);
-      payload["calculated-total"] = clubDayFee + (payload[dayMembershipField] === true ? defaultDayMembershipFee : 0);
+      payload["calculated-total"] = getClubDayBaseFeeForPayload(payload, eventDetails) + (payload[dayMembershipField] === true ? getDayMembershipFeeForPayload(payload) : 0);
     }
 
     const status = eventRegistrationForm.querySelector("[data-event-registration-edit-status]");
@@ -4276,9 +4546,19 @@ function updateAllHorseNames(form) {
   });
 }
 
+function updateShowDayMembershipFee(form) {
+  const dayMembershipInput = form?.querySelector("[name='aeora-membership'][value='day']");
+  if (!dayMembershipInput) return;
+  const hasYoungRiderClass = Boolean(form.querySelector("[name$='-class-young-rider']:checked"));
+  const fee = hasYoungRiderClass ? youngRiderDayMembershipFee : dayMembershipFee;
+  dayMembershipInput.dataset.price = String(fee);
+  dayMembershipInput.closest("label")?.querySelector("strong")?.replaceChildren(formatCurrency(fee));
+}
+
 function updateShowTotals(form) {
   if (!form) return;
 
+  updateShowDayMembershipFee(form);
   const checkedPriceFields = [...form.querySelectorAll("input[type='checkbox'][data-price]:checked, input[type='radio'][data-price]:checked")];
   const numberPriceFields = [...form.querySelectorAll("input[type='number'][data-price]")];
   const campingNightCount = Number(form.querySelector("[name='camping-night-count']")?.value || 0);
@@ -4441,8 +4721,13 @@ function getFormPayload(form) {
     payload["aeora-day-membership"] = payload["aeora-membership"] === "day";
   }
   if (form.matches(".registration-form") && document.querySelector("[name='club-date']")) {
-    const clubDayFee = Number(form.dataset.eventFee || defaultClubDayFee);
-    payload["calculated-total"] = clubDayFee + (payload["club-day-day-membership"] === true ? defaultDayMembershipFee : 0);
+    const selectedClubDayFee = payload["club-day-young-rider"] === true
+      ? Number(form.dataset.youngRiderFee || youngRiderClubDayFee)
+      : Number(form.dataset.eventFee || clubDayFee);
+    const selectedDayMembershipFee = payload["club-day-young-rider"] === true
+      ? Number(form.dataset.youngRiderDayMembershipFee || youngRiderDayMembershipFee)
+      : Number(form.dataset.dayMembershipFee || dayMembershipFee);
+    payload["calculated-total"] = selectedClubDayFee + (payload["club-day-day-membership"] === true ? selectedDayMembershipFee : 0);
   }
   if (form.matches("[data-annual-membership-form]")) {
     payload["horse-level"] = payload["horse-level"] === true ? "Green" : "";

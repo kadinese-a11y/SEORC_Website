@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Process Flow | SEORC Admin</title>
+    <meta name="description" content="SEORC admin process flow for events, registrations, judging, and archiving.">
+    <link rel="stylesheet" href="styles.css?v=20260712-process-flow">
+  </head>
+  <body data-admin-role-required>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="SEORC home">
+        <img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true">
+        <span>
+          <strong>SEORC</strong>
+          <small>Shoalhaven Extreme Obstacle Racing Club</small>
+        </span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="registration.html">Registration</a>
+        <a href="calendar.html">Calendar</a>
+        <a class="active" href="admin.html">Admin</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-title">
+        <p class="eyebrow">Admin reference</p>
+        <h1>Process flow.</h1>
+        <p>Follow the club workflow from event setup through registration, judging, publishing, and financial records.</p>
+      </section>
+
+      <section class="admin-layout">
+        <section class="registration-admin-list">
+          <div class="admin-actions">
+            <a class="button secondary form-submit" href="admin.html">Back to Dashboard</a>
+          </div>
+
+          <section class="process-flow-panel" aria-labelledby="show-setup-flow-title">
+            <div class="form-heading">
+              <p class="eyebrow">Show process</p>
+              <h2 id="show-setup-flow-title">Show setup and results.</h2>
+              <p>Use this as the quick checklist for setting up a show and carrying it through to archive.</p>
+            </div>
+            <ol class="process-flow-list">
+              <li><span>1</span><div><strong>Create the show</strong><p>Add the show date, title, location, prices, and judge assignment from the admin dashboard.</p></div></li>
+              <li><span>2</span><div><strong>Collect registrations</strong><p>Riders submit their details, horses, classes, camping, yarding, and payment confirmation through the show registration form.</p></div></li>
+              <li><span>3</span><div><strong>Set obstacles</strong><p>Open obstacle setup from the event detail screen, enter the judge name, and name each obstacle in course order.</p></div></li>
+              <li><span>4</span><div><strong>Download scoring cards</strong><p>The PDF uses the saved judge, obstacles, riders, horses, classes, and running order for the show.</p></div></li>
+              <li><span>5</span><div><strong>Judge and process results</strong><p>Scores are entered by class, placings are processed, and completed classes become ready for results publishing.</p></div></li>
+              <li><span>6</span><div><strong>Publish and archive</strong><p>Once all classes are processed, the event can be published, archived, and included in points and P&amp;L records.</p></div></li>
+            </ol>
+          </section>
+
+          <section class="process-flow-panel" aria-labelledby="club-process-flow-title">
+            <div class="form-heading">
+              <p class="eyebrow">Club process</p>
+              <h2 id="club-process-flow-title">Club days, clinics, and records.</h2>
+              <p>Use this checklist for the simpler event workflow that does not need show classes or scoring cards.</p>
+            </div>
+            <ol class="process-flow-list compact-process-flow-list">
+              <li><span>1</span><div><strong>Create the event</strong><p>Add the club day, clinic, or external event details so it appears on the calendar and registration pages.</p></div></li>
+              <li><span>2</span><div><strong>Collect attendee details</strong><p>Participants register online, confirm payment, and note day membership requirements where needed.</p></div></li>
+              <li><span>3</span><div><strong>Manage attendance</strong><p>Use the event detail page to mark attendance, payment status, transfers, or cancellations.</p></div></li>
+              <li><span>4</span><div><strong>Record finances</strong><p>Add event costs, shared club costs, other income, and membership income into the P&amp;L pages.</p></div></li>
+              <li><span>5</span><div><strong>Archive records</strong><p>Completed events and financial years are archived so past participation, points, and reporting stay available.</p></div></li>
+            </ol>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Registration and event data are managed in Supabase.</p>
+      <p class="footer-links"><a href="mailto:shoalhaveneorc25@gmail.com">shoalhaveneorc25@gmail.com</a><a href="admin.html">Admin</a></p>
+    </footer>
+
+    <script src="config/supabaseClient.js?v=20260615"></script>
+    <script src="script.js?v=20260712-process-flow"></script>
+  </body>
+</html>
