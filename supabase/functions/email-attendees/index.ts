@@ -10,6 +10,9 @@ type EmailAttendeesRequest = {
   eventId?: string;
   subject?: string;
   message?: string;
+  mediaUrl?: string;
+  mediaName?: string;
+  mediaType?: string;
 };
 
 function attendeeEmail(payload: Record<string, unknown>) {
@@ -58,6 +61,52 @@ function featureBox(label: string, value: string, note = "") {
           <p style="margin:0 0 6px;font-size:11px;color:#c8a96e;font-weight:bold;letter-spacing:2px;text-transform:uppercase;">${label}</p>
           <p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:bold;color:#ffffff;letter-spacing:1px;">${value}</p>
           ${note ? `<p style="margin:8px 0 0;font-size:12px;color:#8aa0bc;">${note}</p>` : ""}
+        </td>
+      </tr>
+    </table>
+  `;
+}
+
+function safeAttendeeMediaUrl(value: unknown, supabaseUrl: string) {
+  if (typeof value !== "string" || !value.trim()) return "";
+  try {
+    const url = new URL(value);
+    const projectUrl = new URL(supabaseUrl);
+    const expectedPath = "/storage/v1/object/public/club-media/";
+    if (url.origin !== projectUrl.origin || !url.pathname.startsWith(expectedPath)) return "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
+function mediaBlock(mediaUrl: string, mediaName: string, mediaType: string) {
+  if (!mediaUrl) return "";
+  const safeUrl = escapeHtml(mediaUrl);
+  const safeName = escapeHtml(mediaName || "Attached media");
+
+  if (mediaType.startsWith("image/")) {
+    return `
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px;">
+        <tr>
+          <td style="padding:18px;background-color:#f8f4ec;border:1px solid #e5ddd0;border-radius:4px;">
+            <p style="margin:0 0 12px;font-size:12px;color:#8f3f2f;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Media update</p>
+            <a href="${safeUrl}" style="display:block;text-decoration:none;">
+              <img src="${safeUrl}" alt="${safeName}" width="520" style="display:block;width:100%;max-width:520px;height:auto;border:0;border-radius:3px;" />
+            </a>
+            <p style="margin:12px 0 0;font-size:14px;color:#3d3d3d;line-height:1.6;"><a href="${safeUrl}" style="color:#1a2f4e;font-weight:bold;">Open image</a></p>
+          </td>
+        </tr>
+      </table>
+    `;
+  }
+
+  return `
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px;">
+      <tr>
+        <td style="padding:18px;background-color:#f8f4ec;border:1px solid #e5ddd0;border-radius:4px;">
+          <p style="margin:0 0 8px;font-size:12px;color:#8f3f2f;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Media update</p>
+          <p style="margin:0;font-size:15px;color:#3d3d3d;line-height:1.6;"><a href="${safeUrl}" style="color:#1a2f4e;font-weight:bold;">Open ${safeName}</a></p>
         </td>
       </tr>
     </table>
@@ -174,9 +223,10 @@ Deno.serve(async (request) => {
     });
   }
 
-  const { eventId, subject, message }: EmailAttendeesRequest = await request.json();
+  const { eventId, subject, message, mediaUrl, mediaName, mediaType }: EmailAttendeesRequest = await request.json();
   const trimmedSubject = subject?.trim();
   const trimmedMessage = message?.trim();
+  const attendeeMediaUrl = safeAttendeeMediaUrl(mediaUrl, supabaseUrl);
 
   if (!eventId || !trimmedSubject || !trimmedMessage) {
     return new Response(JSON.stringify({ error: "An event, subject, and message are required." }), {
@@ -223,6 +273,7 @@ Deno.serve(async (request) => {
     bodyHtml: `
       ${featureBox("Event", escapeHtml(eventLabel))}
       ${paragraph(safeMessage)}
+      ${mediaBlock(attendeeMediaUrl, mediaName?.trim() || "", mediaType?.trim() || "")}
     `,
     ctaLabel: "View Event Calendar →",
     ctaUrl: "https://www.shoalhaveneorc.com/calendar.html",

@@ -78,6 +78,13 @@
                 Horse name
                 <input name="club-day-horse-name" type="text" required>
               </label>
+              <label>
+                Rider type
+                <select name="club-day-rider-type" required>
+                  <option value="adult">Adult</option>
+                  <option value="junior">Junior</option>
+                </select>
+              </label>
             </div>
           </fieldset>
 
@@ -86,10 +93,6 @@
             <label class="check-row">
               <input name="club-day-paid" type="checkbox" required>
               <span>I have paid for my club day using the <a href="bank-details.html">bank details page</a> and sent through my payment details.</span>
-            </label>
-            <label class="check-row">
-              <input name="club-day-young-rider" type="checkbox">
-              <span>Young rider: the rider is under 13 years old and older than 5 years old.</span>
             </label>
             <label class="check-row">
               <input name="club-day-day-membership" type="checkbox" data-price="15">

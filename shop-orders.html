@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Shop Orders | SEORC</title>
+    <meta name="description" content="SEORC shop order fulfilment.">
+    <link rel="stylesheet" href="styles.css?v=20260712-shop">
+  </head>
+  <body data-admin-role-required>
+    <header class="site-header">
+      <a class="brand" href="admin.html" aria-label="SEORC admin dashboard">
+        <img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true">
+        <span>
+          <strong>SEORC</strong>
+          <small>Shoalhaven Extreme Obstacle Racing Club</small>
+        </span>
+      </a>
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="admin.html">Admin</a>
+        <a href="shop-admin.html">Shop items</a>
+        <a href="shop.html">View shop</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-title">
+        <p class="eyebrow">Orders</p>
+        <h1>Shop orders.</h1>
+        <p>Track orders to fulfil, mark sent orders, and review fulfilled orders in one table.</p>
+      </section>
+
+      <section class="admin-layout">
+        <section class="registration-admin-list">
+          <div class="admin-actions">
+            <a class="button secondary form-submit" href="shop-admin.html">Back to shop items</a>
+            <label class="inline-select-control">Show orders
+              <select data-shop-order-filter>
+                <option value="all" selected>All orders</option>
+                <option value="waiting">To fulfil</option>
+                <option value="fulfilled">Fulfilled</option>
+              </select>
+            </label>
+          </div>
+
+          <section class="show-class-panel">
+            <div class="form-heading">
+              <p class="eyebrow">Fulfilment</p>
+              <h2>All shop orders</h2>
+            </div>
+            <div data-shop-order-list="all"><p class="empty-state">Loading shop orders...</p></div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script src="config/supabaseClient.js?v=20260615"></script>
+    <script src="script.js?v=20260714-shop-orders-status-post"></script>
+  </body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Shop | SEORC</title>
+    <meta name="description" content="SEORC club shop for merchandise, vouchers, and club items.">
+    <link rel="stylesheet" href="styles.css?v=20260712-shop">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="SEORC home">
+        <img class="brand-logo" src="assets/seorc-club-logo.png" alt="" aria-hidden="true">
+        <span>
+          <strong>SEORC</strong>
+          <small>Shoalhaven Extreme Obstacle Racing Club</small>
+        </span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="registration.html">Registration</a>
+        <a href="media.html">Media</a>
+        <a href="calendar.html">Calendar</a>
+        <a href="points.html">Points</a>
+        <a class="active" href="shop.html">Shop</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-title">
+        <p class="eyebrow">Club shop</p>
+        <h1>SEORC shop.</h1>
+        <p>Club merchandise, vouchers, and useful items for riders.</p>
+      </section>
+
+      <section class="shop-layout">
+        <div class="shop-toolbar">
+          <div>
+            <p class="eyebrow">Available items</p>
+            <h2>Browse the club shop</h2>
+          </div>
+          <a class="button secondary form-submit" href="bank-details.html">Bank details</a>
+        </div>
+        <div class="shop-grid" data-shop-front>
+          <p class="empty-state">Loading shop items...</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Questions about an item?</p>
+      <p class="footer-links"><a href="mailto:shoalhaveneorc25@gmail.com">shoalhaveneorc25@gmail.com</a><a href="admin-login.html">Admin</a></p>
+    </footer>
+
+    <script src="config/supabaseClient.js?v=20260620"></script>
+    <script src="script.js?v=20260712-shop-order-flow"></script>
+  </body>
+</html>

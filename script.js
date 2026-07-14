@@ -8,7 +8,7 @@ const showOrderStorageKey = "seorcShowClassOrder";
 const membershipConfirmationStorageKey = "seorcMembershipConfirmation";
 const adminPanelOpenStateStorageKey = "seorcAdminPanelOpenState";
 const defaultClubDayFee = 40;
-const defaultYoungRiderClubDayFee = 35;
+const defaultJuniorClubDayFee = 35;
 const defaultDayMembershipFee = 15;
 const defaultYoungRiderDayMembershipFee = 15;
 const defaultClinicFee = 170;
@@ -16,7 +16,7 @@ const ridingLevelOptions = ["Professional", "Amateur", "Rookie", "Encouragement"
 let annualMembershipFee = 20;
 let juniorMembershipFee = 15;
 let clubDayFee = defaultClubDayFee;
-let youngRiderClubDayFee = defaultYoungRiderClubDayFee;
+let juniorClubDayFee = defaultJuniorClubDayFee;
 let dayMembershipFee = defaultDayMembershipFee;
 let youngRiderDayMembershipFee = defaultYoungRiderDayMembershipFee;
 const showObstacleCount = 14;
@@ -225,10 +225,10 @@ function applySelectedEventSettings() {
     const info = form?.querySelector("[data-event-options-info]");
     if (type === "club" && info) {
       form.dataset.eventFee = String(getClubDayStandardFee(event));
-      form.dataset.youngRiderFee = String(getClubDayYoungRiderFee(event));
+      form.dataset.juniorClubDayFee = String(getClubDayJuniorFee(event));
       form.dataset.dayMembershipFee = String(getClubDayMembershipFee(event));
       form.dataset.youngRiderDayMembershipFee = String(getYoungRiderDayMembershipFee());
-      info.textContent = event ? `Club day fee: ${formatCurrency(getClubDayStandardFee(event))}. Young rider fee: ${formatCurrency(getClubDayYoungRiderFee(event))}. AEORA day member adult: ${formatCurrency(getClubDayMembershipFee(event))}. AEORA day member young rider: ${formatCurrency(getYoungRiderDayMembershipFee())}` : "";
+      info.textContent = event ? `Adult club day: ${formatCurrency(getClubDayStandardFee(event))}. Junior club day: ${formatCurrency(getClubDayJuniorFee(event))}. Adult AEORA day membership: ${formatCurrency(getClubDayMembershipFee(event))}. Junior AEORA day membership: ${formatCurrency(getYoungRiderDayMembershipFee())}` : "";
       updateClubDayTotal(form);
     }
     if (type === "clinic" && info) { const fee = Number(settings.clinic_fee ?? defaultClinicFee); form.dataset.eventFee = String(fee); info.textContent = event ? `Clinic fee: ${formatCurrency(fee)}` : ""; updateClinicTotal(form); }
@@ -251,16 +251,12 @@ function applySelectedEventSettings() {
   });
 }
 
-function isYoungRiderClubDayRegistration(payload) {
-  return payload?.["club-day-young-rider"] === true;
-}
-
 function getClubDayStandardFee(event) {
   return Number(event?.event_settings?.club_day_fee ?? clubDayFee);
 }
 
-function getClubDayYoungRiderFee(event) {
-  return Number(event?.event_settings?.club_day_young_rider_fee ?? youngRiderClubDayFee);
+function getClubDayJuniorFee(event) {
+  return Number(event?.event_settings?.club_day_junior_fee ?? event?.event_settings?.club_day_young_rider_fee ?? juniorClubDayFee);
 }
 
 function getClubDayMembershipFee(event) {
@@ -272,15 +268,16 @@ function getYoungRiderDayMembershipFee() {
 }
 
 function getDayMembershipFeeForPayload(payload = {}) {
-  return isYoungRiderDayMembershipPayload(payload) ? getYoungRiderDayMembershipFee() : dayMembershipFee;
+  return isJuniorDayMembershipPayload(payload) ? getYoungRiderDayMembershipFee() : dayMembershipFee;
 }
 
 function getClubDayBaseFeeForPayload(payload = {}, event) {
-  return isYoungRiderClubDayRegistration(payload) ? getClubDayYoungRiderFee(event) : getClubDayStandardFee(event);
+  return isJuniorDayMembershipPayload(payload) ? getClubDayJuniorFee(event) : getClubDayStandardFee(event);
 }
 
-function isYoungRiderDayMembershipPayload(payload = {}) {
-  if (isYoungRiderClubDayRegistration(payload)) return true;
+function isJuniorDayMembershipPayload(payload = {}) {
+  if (payload?.["club-day-rider-type"] === "junior") return true;
+  if (payload?.["club-day-young-rider"] === true) return true;
   if (String(payload["riding-level"] || "").toLowerCase().includes("young rider")) return true;
   return Object.entries(payload).some(([key, value]) => {
     return value === true && /^horse-\d+-class-young-rider$/.test(key);
@@ -289,12 +286,13 @@ function isYoungRiderDayMembershipPayload(payload = {}) {
 
 function updateClubDayTotal(form) {
   if (!form?.matches(".registration-form") || !form.querySelector("[name='club-date']")) return;
-  const selectedClubDayFee = form.querySelector("[name='club-day-young-rider']")?.checked
-    ? Number(form.dataset.youngRiderFee || youngRiderClubDayFee)
+  const isJunior = form.querySelector("[name='club-day-rider-type']")?.value === "junior";
+  const selectedClubDayFee = isJunior
+    ? Number(form.dataset.juniorClubDayFee || juniorClubDayFee)
     : Number(form.dataset.eventFee || clubDayFee);
   const dayMembershipAdded = form.querySelector("[name='club-day-day-membership']")?.checked;
   const selectedDayMembershipFee = dayMembershipAdded
-    ? form.querySelector("[name='club-day-young-rider']")?.checked
+    ? isJunior
       ? Number(form.dataset.youngRiderDayMembershipFee || youngRiderDayMembershipFee)
       : Number(form.dataset.dayMembershipFee || dayMembershipFee)
     : 0;
@@ -317,7 +315,7 @@ function updateClinicTotal(form) {
 
 document.addEventListener("change", (event) => {
   if (event.target.matches("[name='club-date'], [name='clinic-date'], [name='show-date']")) applySelectedEventSettings();
-  if (event.target.matches("[name='club-day-day-membership'], [name='club-day-young-rider']")) updateClubDayTotal(event.target.closest("form"));
+  if (event.target.matches("[name='club-day-day-membership'], [name='club-day-rider-type']")) updateClubDayTotal(event.target.closest("form"));
 });
 
 function escapeHTML(value) {
@@ -350,6 +348,251 @@ function renderAdminTable({ columns, rows, className = "", ariaLabel = "", empty
       `).join("")}
     </div>
   `;
+}
+
+function getShopImageUrl(item) {
+  return item.image_url || "assets/seorc-club-logo.png";
+}
+
+function getShopStockLabel(status) {
+  if (status === "sold_out") return "Sold out";
+  if (status === "preorder") return "Pre-order";
+  return "Available";
+}
+
+function renderShopOrderModal(item) {
+  const itemPrice = Number(item.price || 0);
+  return `
+    <form class="form-panel modal-edit-panel" data-shop-order-modal data-item-id="${escapeHTML(item.id)}">
+      <div class="form-heading modal-heading">
+        <p class="eyebrow">Shop order</p>
+        <h2 id="modal-title">${escapeHTML(item.name)}</h2>
+        <p>${escapeHTML(item.description || "")}</p>
+      </div>
+      <div class="shop-order-summary">
+        <img src="${escapeHTML(getShopImageUrl(item))}" alt="">
+        <dl class="payment-list compact-payment-list">
+          <div><dt>Item price</dt><dd>${formatCurrency(itemPrice)}</dd></div>
+          <div><dt>Quantity</dt><dd><input name="quantity" type="number" min="1" step="1" value="1" data-shop-order-quantity></dd></div>
+          <div><dt>Total</dt><dd data-shop-order-total>${formatCurrency(itemPrice)}</dd></div>
+        </dl>
+      </div>
+      <div class="form-grid">
+        <label>Purchaser name<input name="customer_name" autocomplete="name" required></label>
+        <label>Email<input name="customer_email" type="email" autocomplete="email" required></label>
+        <label>Total order amount<input name="total_amount" value="${formatCurrency(itemPrice)}" readonly data-shop-order-total-input></label>
+      </div>
+      <label>Address<textarea name="address" rows="3" autocomplete="street-address" required></textarea></label>
+      <label>Comments for purchase<textarea name="comments" rows="3" placeholder="Size, colour, pickup notes, or other details."></textarea></label>
+      <section class="shop-bank-panel">
+        <p class="eyebrow">Bank transfer</p>
+        <dl class="payment-list compact-payment-list">
+          <div><dt>Account name</dt><dd>Shoalhaven Extreme Obstacle Racing Club</dd></div>
+          <div><dt>BSB</dt><dd>062 - 585</dd></div>
+          <div><dt>Account number</dt><dd>11072610</dd></div>
+          <div><dt>Reference</dt><dd data-shop-order-reference>Created when order is sent</dd></div>
+        </dl>
+      </section>
+      <p class="field-note">Submit this order first. Your order reference will appear here and should be used as the bank transfer reference.</p>
+      <div class="admin-actions">
+        <button class="button primary form-submit" type="submit">Send order</button>
+        <button class="button secondary form-submit" type="button" data-close-modal>Close</button>
+      </div>
+      <p class="form-status" data-shop-order-status></p>
+    </form>
+  `;
+}
+
+async function fetchShopItems() {
+  return requestSupabase("/rest/v1/shop_items?select=*&order=sort_order.asc,name.asc");
+}
+
+async function fetchShopOrders(filter = "waiting") {
+  const config = getSupabaseConfig();
+  const token = await getFreshAdminAccessToken();
+  if (!config || !token) throw new Error("Admin sign-in is required.");
+  const response = await fetch(`${config.url}/functions/v1/shop-orders-admin?status=${encodeURIComponent(filter)}`, {
+    headers: { apikey: config.anonKey, Authorization: `Bearer ${token}` },
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "Could not load shop orders.");
+  return result.orders || [];
+}
+
+function renderShopItemCard(item) {
+  const soldOut = item.stock_status === "sold_out";
+  return `
+    <article class="shop-item-card">
+      <div class="shop-item-media">
+        <img src="${escapeHTML(getShopImageUrl(item))}" alt="${escapeHTML(item.name)}">
+        <span class="status-pill ${soldOut ? "status-expired" : "status-active"}">${escapeHTML(getShopStockLabel(item.stock_status))}</span>
+      </div>
+      <div class="shop-item-body">
+        <div>
+          <h3>${escapeHTML(item.name)}</h3>
+          <p>${escapeHTML(item.description || "")}</p>
+        </div>
+        <div class="shop-item-footer">
+          <strong>${formatCurrency(Number(item.price || 0))}</strong>
+          ${soldOut ? '<span class="button secondary form-submit disabled-link">Sold out</span>' : `<button class="button primary form-submit" type="button" data-order-shop-item="${escapeHTML(item.id)}">Order</button>`}
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+async function loadShopFront() {
+  const container = document.querySelector("[data-shop-front]");
+  if (!container) return;
+
+  try {
+    const items = await fetchShopItems();
+    window.shopItems = items;
+    container.innerHTML = items.length
+      ? items.map(renderShopItemCard).join("")
+      : '<p class="empty-state">No shop items are listed yet.</p>';
+  } catch (error) {
+    container.innerHTML = '<p class="empty-state">Could not load shop items. Please try again soon.</p>';
+    console.error("Shop items could not be loaded:", error);
+  }
+}
+
+function resetShopItemForm() {
+  closeModal();
+}
+
+function renderShopItemFormModal(item = {}) {
+  const isEditing = Boolean(item.id);
+  const imageUrl = item.image_url || "";
+  return `
+    <form class="form-panel modal-edit-panel" data-shop-item-form>
+      <div class="form-heading modal-heading">
+        <p class="eyebrow">Shop item</p>
+        <h2 id="modal-title">${isEditing ? "Edit item" : "Add new item"}</h2>
+      </div>
+      <input name="id" type="hidden" value="${escapeHTML(item.id || "")}">
+      <input name="image_url" type="hidden" value="${escapeHTML(imageUrl)}">
+      <div class="form-grid">
+        <label>Item name<input name="name" value="${escapeHTML(item.name || "")}" required></label>
+        <label>Price (AUD)<input name="price" type="number" min="0" step="0.01" value="${escapeHTML(item.price ?? "")}" required></label>
+        <label>Stock status<select name="stock_status"><option value="available"${item.stock_status === "available" || !item.stock_status ? " selected" : ""}>Available</option><option value="preorder"${item.stock_status === "preorder" ? " selected" : ""}>Pre-order</option><option value="sold_out"${item.stock_status === "sold_out" ? " selected" : ""}>Sold out</option></select></label>
+        <label>Sort order<input name="sort_order" type="number" step="1" value="${escapeHTML(item.sort_order ?? "0")}"></label>
+        <label>Product image<input name="image_file" type="file" accept="image/*"><span class="field-note">Upload a product photo or leave blank to keep the current image.</span></label>
+      </div>
+      <div class="shop-image-preview" data-shop-image-preview${imageUrl ? "" : " hidden"}>
+        <img src="${escapeHTML(imageUrl || "assets/seorc-club-logo.png")}" alt="">
+      </div>
+      <label>Description<textarea name="description" rows="4" required>${escapeHTML(item.description || "")}</textarea></label>
+      <div class="admin-actions">
+        <button class="button primary form-submit" type="submit">Save item</button>
+        <button class="button secondary form-submit" type="button" data-close-modal>Cancel</button>
+      </div>
+      <p class="form-status" data-shop-item-status></p>
+    </form>
+  `;
+}
+
+function openShopItemModal(item = {}) {
+  openModal(renderShopItemFormModal(item));
+}
+
+async function uploadAdminMediaFile(file, prefix = "media") {
+  const config = getSupabaseConfig();
+  const token = await getFreshAdminAccessToken();
+  if (!config || !token) throw new Error("Admin sign-in is required to upload media.");
+  const cleanedName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+  const path = `${prefix}-${Date.now()}-${cleanedName}`;
+  const response = await fetch(`${config.url}/storage/v1/object/club-media/${encodeURIComponent(path)}`, {
+    method: "POST",
+    headers: {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": file.type || "application/octet-stream",
+      "x-upsert": "false",
+    },
+    body: file,
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`Media upload failed (${response.status})${detail ? `: ${detail}` : ""}`);
+  }
+
+  return `${config.url}/storage/v1/object/public/club-media/${encodeURIComponent(path)}`;
+}
+
+async function uploadShopItemImage(file) {
+  return uploadAdminMediaFile(file, "shop");
+}
+
+function renderShopAdminList(items) {
+  const container = document.querySelector("[data-shop-admin-list]");
+  if (!container) return;
+
+  container.innerHTML = renderAdminTable({
+    columns: ["Item", "Price", "Status", "Show in shop", "Sort", "Action"],
+    className: "shop-admin-table",
+    ariaLabel: "Shop items",
+    emptyMessage: "No shop items yet.",
+    rows: items.map((item) => [
+      `<button class="admin-table-title-link table-button-link" type="button" data-edit-shop-item="${escapeHTML(item.id)}"><strong>${escapeHTML(item.name)}</strong></button><small>${escapeHTML(item.description || "No description")}</small>`,
+      formatCurrency(Number(item.price || 0)),
+      escapeHTML(getShopStockLabel(item.stock_status)),
+      `<input type="checkbox" aria-label="Show ${escapeHTML(item.name)} in shop" data-toggle-shop-published="${escapeHTML(item.id)}"${item.published ? " checked" : ""}>`,
+      String(item.sort_order ?? 0),
+      `<button class="button secondary compact-button" type="button" data-delete-shop-item="${escapeHTML(item.id)}">Delete</button>`,
+    ]),
+  });
+}
+
+async function loadShopAdmin() {
+  const container = document.querySelector("[data-shop-admin-list]");
+  if (!container) return;
+
+  try {
+    const items = await fetchShopItems();
+    window.shopItems = items;
+    renderShopAdminList(items);
+  } catch (error) {
+    container.innerHTML = '<p class="empty-state">Could not load shop items. Please check admin access.</p>';
+    console.error("Shop admin items could not be loaded:", error);
+  }
+}
+
+function renderShopOrderList(orders) {
+  const container = document.querySelector("[data-shop-order-list]");
+  if (!container) return;
+
+  container.innerHTML = renderAdminTable({
+    columns: ["Reference", "Order", "Customer", "Total", "Sent out"],
+    className: "shop-orders-table",
+    ariaLabel: "Shop orders",
+    emptyMessage: "No shop orders yet.",
+    rows: orders.map((order) => [
+      `<strong>${escapeHTML(order.order_reference)}</strong><small>${escapeHTML(formatDateTime(order.created_at))}</small>`,
+      `${escapeHTML(order.item_name)}<small>Qty ${escapeHTML(order.quantity)}${order.comments ? ` · ${escapeHTML(order.comments)}` : ""}</small>`,
+      `${escapeHTML(order.customer_name)}<small>${escapeHTML(order.customer_email)} · ${escapeHTML(order.customer_address)}</small>`,
+      formatCurrency(Number(order.total_amount || 0)),
+      `<label class="compact-check"><input type="checkbox" data-toggle-shop-order-sent="${escapeHTML(order.id)}"${order.sent_out ? " checked" : ""}><span>${order.sent_out ? "Sent" : "Waiting"}</span></label>`,
+    ]),
+  });
+}
+
+async function loadShopOrders(filterOverride = "") {
+  const container = document.querySelector("[data-shop-order-list]");
+  if (!container) return;
+  if (!await getFreshAdminAccessToken()) return;
+  const select = document.querySelector("[data-shop-order-filter]");
+  const filter = filterOverride || select?.value || container.dataset.shopOrderList || "waiting";
+
+  try {
+    const orders = await fetchShopOrders(filter);
+    window.shopOrders = orders;
+    renderShopOrderList(orders);
+  } catch (error) {
+    container.innerHTML = `<p class="empty-state">Could not load shop orders: ${escapeHTML(error.message)}</p>`;
+    console.error("Shop orders could not be loaded:", error);
+  }
 }
 
 function readAdminPanelOpenState() {
@@ -539,7 +782,9 @@ document.addEventListener("click", async (event) => {
     const prefix = panel.dataset.memberPrefix;
     const set = (name, value) => { const field = form.querySelector(`[name='${name}']`); if (field) field.value = value || ""; };
     set(`${prefix}-first-name`, member.first_name); set(`${prefix}-last-name`, member.last_name); set(`${prefix}-email`, member.email); set(`${prefix}-phone`, member.phone);
-    set("riding-level", member.riding_level); alert("Member details filled in.");
+    set("riding-level", member.riding_level);
+    if (member.membership_type) set(`${prefix}-rider-type`, member.membership_type === "junior" ? "junior" : "adult");
+    updateClubDayTotal(form); alert("Member details filled in.");
   } catch (error) { alert(`Could not look up membership: ${error.message}`); }
 });
 
@@ -549,20 +794,22 @@ async function loadClubSettings() {
     const adultFee = Number(settings.find((setting) => setting.setting_key === "annual_membership_fee")?.membership_fee);
     const juniorFee = Number(settings.find((setting) => setting.setting_key === "junior_membership_fee")?.membership_fee);
     const clubFee = Number(settings.find((setting) => setting.setting_key === "club_day_fee")?.membership_fee);
-    const youngRiderFee = Number(settings.find((setting) => setting.setting_key === "club_day_young_rider_fee")?.membership_fee);
+    const juniorClubFee = Number(settings.find((setting) => setting.setting_key === "club_day_junior_fee")?.membership_fee);
+    const legacyYoungRiderClubFee = Number(settings.find((setting) => setting.setting_key === "club_day_young_rider_fee")?.membership_fee);
     const legacyAeoraDayFee = Number(settings.find((setting) => setting.setting_key === "aeora_day_membership_fee")?.membership_fee);
     const aeoraDayFee = Number(settings.find((setting) => setting.setting_key === "aeora_day_membership_adult_fee")?.membership_fee);
     const youngRiderAeoraDayFee = Number(settings.find((setting) => setting.setting_key === "aeora_day_membership_young_rider_fee")?.membership_fee);
     if (Number.isFinite(adultFee)) annualMembershipFee = adultFee;
     if (Number.isFinite(juniorFee)) juniorMembershipFee = juniorFee;
     if (Number.isFinite(clubFee)) clubDayFee = clubFee;
-    if (Number.isFinite(youngRiderFee)) youngRiderClubDayFee = youngRiderFee;
+    if (Number.isFinite(juniorClubFee)) juniorClubDayFee = juniorClubFee;
+    else if (Number.isFinite(legacyYoungRiderClubFee)) juniorClubDayFee = legacyYoungRiderClubFee;
     if (Number.isFinite(aeoraDayFee)) dayMembershipFee = aeoraDayFee;
     else if (Number.isFinite(legacyAeoraDayFee)) dayMembershipFee = legacyAeoraDayFee;
     if (Number.isFinite(youngRiderAeoraDayFee)) youngRiderDayMembershipFee = youngRiderAeoraDayFee;
     else if (Number.isFinite(legacyAeoraDayFee)) youngRiderDayMembershipFee = legacyAeoraDayFee;
   } catch (error) {
-    console.warn("Club pricing could not be loaded; using the standard fee.", error);
+    console.warn("Membership pricing could not be loaded; using the standard fee.", error);
   }
   document.querySelectorAll("[data-annual-membership-form]").forEach(updateAnnualMembershipCost);
   applySelectedEventSettings();
@@ -570,7 +817,7 @@ async function loadClubSettings() {
   document.querySelectorAll("[data-club-settings-form] [name='membership_fee']").forEach((input) => { input.value = annualMembershipFee.toFixed(2); });
   document.querySelectorAll("[data-club-settings-form] [name='junior_membership_fee']").forEach((input) => { input.value = juniorMembershipFee.toFixed(2); });
   document.querySelectorAll("[data-club-settings-form] [name='club_day_fee']").forEach((input) => { input.value = clubDayFee.toFixed(2); });
-  document.querySelectorAll("[data-club-settings-form] [name='club_day_young_rider_fee']").forEach((input) => { input.value = youngRiderClubDayFee.toFixed(2); });
+  document.querySelectorAll("[data-club-settings-form] [name='club_day_junior_fee']").forEach((input) => { input.value = juniorClubDayFee.toFixed(2); });
   document.querySelectorAll("[data-club-settings-form] [name='aeora_day_membership_adult_fee']").forEach((input) => { input.value = dayMembershipFee.toFixed(2); });
   document.querySelectorAll("[data-club-settings-form] [name='aeora_day_membership_young_rider_fee']").forEach((input) => { input.value = youngRiderDayMembershipFee.toFixed(2); });
 }
@@ -602,17 +849,20 @@ document.addEventListener("submit", async (event) => {
   const formData = new FormData(form);
   const membershipFee = Number(formData.get("membership_fee"));
   const juniorFee = form.querySelector("[name='junior_membership_fee']") ? Number(formData.get("junior_membership_fee")) : juniorMembershipFee;
+  const juniorClubFee = form.querySelector("[name='club_day_junior_fee']") ? Number(formData.get("club_day_junior_fee")) : juniorClubDayFee;
   const aeoraDayFee = form.querySelector("[name='aeora_day_membership_adult_fee']") ? Number(formData.get("aeora_day_membership_adult_fee")) : dayMembershipFee;
   const youngRiderAeoraDayFee = form.querySelector("[name='aeora_day_membership_young_rider_fee']") ? Number(formData.get("aeora_day_membership_young_rider_fee")) : youngRiderDayMembershipFee;
   try {
     await Promise.all([
       requestSupabase("/rest/v1/club_settings?setting_key=eq.annual_membership_fee", { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ membership_fee: membershipFee, updated_at: new Date().toISOString() }) }),
       requestSupabase("/rest/v1/club_settings?setting_key=eq.junior_membership_fee", { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ membership_fee: juniorFee, updated_at: new Date().toISOString() }) }),
+      requestSupabase("/rest/v1/club_settings?setting_key=eq.club_day_junior_fee", { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ membership_fee: juniorClubFee, updated_at: new Date().toISOString() }) }),
       requestSupabase("/rest/v1/club_settings?setting_key=eq.aeora_day_membership_adult_fee", { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ membership_fee: aeoraDayFee, updated_at: new Date().toISOString() }) }),
       requestSupabase("/rest/v1/club_settings?setting_key=eq.aeora_day_membership_young_rider_fee", { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ membership_fee: youngRiderAeoraDayFee, updated_at: new Date().toISOString() }) }),
     ]);
     annualMembershipFee = membershipFee;
     juniorMembershipFee = juniorFee;
+    juniorClubDayFee = juniorClubFee;
     dayMembershipFee = aeoraDayFee;
     youngRiderDayMembershipFee = youngRiderAeoraDayFee;
     await loadClubSettings();
@@ -739,6 +989,7 @@ async function loadArchivedEventPage() {
         const classResults = results
           .filter((result) => result.class_name === className)
           .sort((a, b) => (a.result_place || 999) - (b.result_place || 999));
+        const rankedClassResults = getRankedArchivedClassResults(classResults);
 
         return `
           <section class="show-class-panel">
@@ -747,14 +998,14 @@ async function loadArchivedEventPage() {
               <h2>${escapeHTML(className)}</h2>
             </div>
             ${renderAdminTable({
-              columns: ["Rank", "Participant", "Horse", "Points", "Status"],
+              columns: ["Rank", "Participant", "Horse", "Total points", "Time"],
               className: "show-class-table",
-              rows: classResults.map((result) => [
-                escapeHTML(String(result.result_place || "—")),
+              rows: rankedClassResults.map((result) => [
+                escapeHTML(String(result.display_place || "—")),
                 escapeHTML(result.participant_name),
                 escapeHTML(result.horse_name),
                 escapeHTML(formatPoints(getShowResultPoints(result))),
-                result.scratched ? "Scratched" : "Complete",
+                result.scratched ? "Scratched" : escapeHTML(formatTiming(getShowResultTimingSeconds(result))),
               ]),
             })}
           </section>
@@ -770,12 +1021,12 @@ loadArchivedEventPage();
 function downloadArchivedPointsCsv(event, results) {
   const csvCell = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
   const eventDate = event.date ? formatDateParts(event.date).label : "Not recorded";
-  const rows = [["Event date", "Class", "Entries", "Place", "Rider", "Horse", "Points"]];
+  const rows = [["Event date", "Class", "Entries", "Place", "Rider", "Horse", "Total points", "Time"]];
   sortShowClassNames([...new Set(results.map((result) => result.class_name))]).forEach((className) => {
     const classResults = results.filter((result) => result.class_name === className);
-    classResults.filter((result) => Number(result.result_place) >= 1 && Number(result.result_place) <= 4)
-      .sort((a, b) => Number(a.result_place) - Number(b.result_place))
-      .forEach((result) => rows.push([eventDate, className, classResults.length, result.result_place, result.participant_name, result.horse_name, getShowResultPoints(result)]));
+    getRankedArchivedClassResults(classResults)
+      .filter((result) => Number(result.display_place) >= 1 && Number(result.display_place) <= 4)
+      .forEach((result) => rows.push([eventDate, className, classResults.length, result.display_place, result.participant_name, result.horse_name, getShowResultPoints(result), formatTiming(getShowResultTimingSeconds(result))]));
   });
   const blob = new Blob([rows.map((row) => row.map(csvCell).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
   const link = document.createElement("a");
@@ -1045,7 +1296,7 @@ function getRegistrationRevenue(registration) {
   const payload = registration.payload || {};
   const calculatedTotal = Number(payload["calculated-total"]);
   const event = getEventDetails(getRegistrationEventId(registration));
-  const dayMembershipTotal = needsDayMembershipForm(registration) ? getDayMembershipFeeForPayload(payload) : 0;
+  const dayMembershipTotal = needsDayMembershipForm(registration) ? getDayMembershipFeeForPayload(payload, event) : 0;
 
   if (registration.form_type === "show_registration") {
     if (!isShowRegistrationPaid(registration)) return 0;
@@ -1090,7 +1341,7 @@ function calculateShowRegistrationTotal(payload, event) {
       return classTotalForHorse + (payload[`horse-${horseNumber}-class-${slug}`] === true ? Number(classPrices[slug] ?? getDefaultShowClassPrice(slug)) : 0);
     }, 0);
   }, 0);
-  const dayMembership = (payload["aeora-day-membership"] === true || payload["aeora-membership"] === "day") ? getDayMembershipFeeForPayload(payload) : 0;
+  const dayMembership = (payload["aeora-day-membership"] === true || payload["aeora-membership"] === "day") ? getDayMembershipFeeForPayload(payload, event) : 0;
   const dinner = getPayloadNumber(payload, "dinner-count") * pricing.dinner;
   const nightCount = getPayloadNumber(payload, "camping-night-count");
   const camping = (
@@ -1106,7 +1357,7 @@ function getShowPassThroughTotal(registration, event = getEventDetails(getRegist
   const payload = registration.payload || {};
   const pricing = getShowPricing(event);
   const nightCount = getPayloadNumber(payload, "camping-night-count");
-  const dayMembership = needsDayMembershipForm(registration) ? getDayMembershipFeeForPayload(payload) : 0;
+  const dayMembership = needsDayMembershipForm(registration) ? getDayMembershipFeeForPayload(payload, event) : 0;
   const dinner = getPayloadNumber(payload, "dinner-count") * pricing.dinner;
   const camping = (
     (payload["camping-with-power"] === true ? pricing.poweredCamping : 0) +
@@ -1125,7 +1376,7 @@ function getShowFinancialSummary(event, registrations) {
     const pricing = getShowPricing(event);
     const payload = registration.payload || {};
     const nightCount = getPayloadNumber(payload, "camping-night-count");
-    const dayMembership = isShowRegistrationPaid(registration) && needsDayMembershipForm(registration) ? getDayMembershipFeeForPayload(payload) : 0;
+    const dayMembership = isShowRegistrationPaid(registration) && needsDayMembershipForm(registration) ? getDayMembershipFeeForPayload(payload, event) : 0;
     const dinner = isShowRegistrationPaid(registration) ? getPayloadNumber(payload, "dinner-count") * pricing.dinner : 0;
     const campingAndYards = isShowRegistrationPaid(registration)
       ? (
@@ -1292,7 +1543,7 @@ function normalizeResultEntry(entry, result = {}) {
     horseName: result.horse_name || entry.horseName,
     ridingClass: result.riding_class || entry.ridingClass || "",
     obstacleScores: result.obstacle_scores || {},
-    timingSeconds: result.timing_seconds ?? "",
+    timingSeconds: getShowResultTimingSeconds(result),
     scratched: result.scratched === true,
     placing: result.result_place ?? null,
     processedAt: result.processed_at || null,
@@ -1303,10 +1554,10 @@ function normalizeResultEntry(entry, result = {}) {
 }
 
 function getObstacleScoreTotal(entry) {
-  return Array.from({ length: showObstacleCount }, (_, index) => {
-    const score = Number(entry.obstacleScores?.[`obstacle-${index + 1}`]);
-    return Number.isFinite(score) ? score : 0;
-  }).reduce((total, score) => total + score, 0);
+  return Object.values(entry.obstacleScores || {}).reduce((total, value) => {
+    const score = Number(value);
+    return total + (Number.isFinite(score) ? score : 0);
+  }, 0);
 }
 
 function getTimingValue(entry) {
@@ -1330,6 +1581,10 @@ function formatTiming(timingSeconds) {
   const seconds = totalSeconds % 60;
 
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function getShowResultTimingSeconds(result = {}) {
+  return result.timing_seconds ?? result.time_seconds ?? result.time ?? result.seconds ?? "";
 }
 
 function hasMissingTiming(entries) {
@@ -1366,8 +1621,37 @@ function getShowResultYear(result) {
 }
 
 function getShowResultPoints(result) {
-  if (result.points !== undefined) return Number(result.points) || 0;
+  if (result.points !== undefined && result.points !== null && result.points !== "") return Number(result.points) || 0;
   return getObstacleScoreTotal({ obstacleScores: result.obstacle_scores || {} });
+}
+
+function getArchivedResultTimingValue(result) {
+  const timing = Number(getShowResultTimingSeconds(result));
+  return Number.isFinite(timing) ? timing : Number.POSITIVE_INFINITY;
+}
+
+function getRankedArchivedClassResults(classResults) {
+  const activeResults = classResults
+    .filter((result) => !result.scratched)
+    .sort((a, b) => {
+      const pointDifference = getShowResultPoints(b) - getShowResultPoints(a);
+      if (pointDifference !== 0) return pointDifference;
+
+      const timingDifference = getArchivedResultTimingValue(a) - getArchivedResultTimingValue(b);
+      if (timingDifference !== 0) return timingDifference;
+
+      return String(a.participant_name || "").localeCompare(String(b.participant_name || ""))
+        || String(a.horse_name || "").localeCompare(String(b.horse_name || ""))
+        || String(a.id || "").localeCompare(String(b.id || ""));
+    })
+    .map((result, index) => ({ ...result, display_place: index + 1 }));
+
+  const scratchedResults = classResults
+    .filter((result) => result.scratched)
+    .sort((a, b) => String(a.participant_name || "").localeCompare(String(b.participant_name || "")))
+    .map((result) => ({ ...result, display_place: null }));
+
+  return [...activeResults, ...scratchedResults];
 }
 
 function formatPoints(points) {
@@ -1948,7 +2232,7 @@ function renderEventPricingForm(event) {
   if (!["club", "clinic", "show"].includes(event.type)) return "";
   const settings = event.event_settings || {};
   const fields = event.type === "club"
-    ? `<label>Club day fee<input name="club_day_fee" type="number" min="0" step="0.01" value="${getClubDayStandardFee(event)}"></label><label>Young rider club day fee<input name="club_day_young_rider_fee" type="number" min="0" step="0.01" value="${getClubDayYoungRiderFee(event)}"></label>`
+    ? `<label>Adult club day fee<input name="club_day_fee" type="number" min="0" step="0.01" value="${getClubDayStandardFee(event)}"></label><label>Junior club day fee<input name="club_day_junior_fee" type="number" min="0" step="0.01" value="${getClubDayJuniorFee(event)}"></label>`
     : event.type === "clinic"
       ? `<label>Clinic fee<input name="clinic_fee" type="number" min="0" step="0.01" value="${Number(settings.clinic_fee ?? defaultClinicFee)}"></label>`
     : `<fieldset class="pricing-section"><legend>Dinner</legend><div class="form-grid"><label>Dinner ticket price<input name="dinner_price" type="number" min="0" step="0.01" value="${Number(settings.dinner_price ?? 30)}"></label><label>Dinner vendor link<input name="dinner_vendor_url" type="url" value="${escapeHTML(settings.dinner_vendor_url || "")}" placeholder="https://..."></label><label>Custom dinner information<textarea name="custom_information" rows="4" placeholder="Information shown in the dinner section">${escapeHTML(settings.custom_information || "")}</textarea></label></div></fieldset><fieldset class="pricing-section"><legend>Camping and yards</legend><div class="form-grid"><label>Camping with power / night<input name="powered_camping_price" type="number" min="0" step="0.01" value="${Number(settings.powered_camping_price ?? 30)}"></label><label>Camping without power / night<input name="unpowered_camping_price" type="number" min="0" step="0.01" value="${Number(settings.unpowered_camping_price ?? 20)}"></label><label>Yard price<input name="yard_price" type="number" min="0" step="0.01" value="${Number(settings.yard_price ?? 5)}"></label></div></fieldset><fieldset class="pricing-section"><legend>Classes</legend><div class="form-grid">${showClassSlugs.map((slug) => `<label>${humanizeFieldName(slug)} class<input name="class_${slug}" type="number" min="0" step="0.01" value="${Number(settings.class_prices?.[slug] ?? getDefaultShowClassPrice(slug))}"></label>`).join("")}</div></fieldset>`;
@@ -2051,11 +2335,11 @@ function renderClubMembersDetail(registrations) {
 
 function renderClubDayDetail(group) {
   const standardFee = getClubDayStandardFee(group.event);
-  const youngRiderFee = getClubDayYoungRiderFee(group.event);
+  const juniorFee = getClubDayJuniorFee(group.event);
   const selectedDayMembershipFee = getClubDayMembershipFee(group.event);
   return `
     <div class="admin-actions"><button class="button secondary form-submit" type="button" data-download-attendee-list data-event-id="${escapeHTML(group.event.id)}">Download attendee list</button></div>
-    <p class="field-note">Club day fee: ${formatCurrency(standardFee)}. Young rider fee: ${formatCurrency(youngRiderFee)}. AEORA day member adult: ${formatCurrency(selectedDayMembershipFee)}. AEORA day member young rider: ${formatCurrency(getYoungRiderDayMembershipFee())}.</p>
+    <p class="field-note">Adult club day: ${formatCurrency(standardFee)}. Junior club day: ${formatCurrency(juniorFee)}. Adult AEORA day membership: ${formatCurrency(selectedDayMembershipFee)}. Junior AEORA day membership: ${formatCurrency(getYoungRiderDayMembershipFee())}.</p>
     ${renderEventPaymentSection(group.event.id, group, { includeTransfer: true })}
   `;
 }
@@ -2082,6 +2366,10 @@ function renderEmailAttendeesModal(eventId, eventTitle) {
       </div>
       <label>Subject<input name="subject" type="text" value="${escapeHTML(defaultSubject)}" required></label>
       <label>Message<textarea name="message" rows="8" placeholder="Write the update attendees need to receive." required></textarea></label>
+      <label>Media upload<input name="media_file" type="file" accept="image/*,.pdf"><span class="field-note">Optional: upload an image or PDF to include with this email.</span></label>
+      <div class="shop-image-preview email-media-preview" data-email-media-preview hidden>
+        <img src="" alt="">
+      </div>
       <div class="admin-actions">
         <button class="button primary form-submit" type="submit"${recipientCount ? "" : " disabled"}>Send email</button>
         <button class="button secondary form-submit" type="button" data-close-modal>Cancel</button>
@@ -2100,7 +2388,7 @@ function renderEventRegistrationEditPanel(registration) {
   const horseField = isClinic ? "clinic-horse-name" : "club-day-horse-name";
   const paidField = isClinic ? "clinic-paid" : "club-day-paid";
   const dayMembershipField = isClinic ? "clinic-day-membership" : "club-day-day-membership";
-  const youngRiderField = "club-day-young-rider";
+  const riderType = payload["club-day-rider-type"] || (payload["club-day-young-rider"] === true ? "junior" : "adult");
 
   return `
     <form class="form-panel modal-edit-panel" data-event-registration-edit-form data-registration-id="${escapeHTML(registration.id)}" data-event-id="${escapeHTML(eventId)}" data-form-type="${escapeHTML(registration.form_type)}">
@@ -2117,7 +2405,7 @@ function renderEventRegistrationEditPanel(registration) {
         <label>Horse name<input name="${horseField}" value="${escapeHTML(payload[horseField] || "")}" required></label>
       </div>
       <label class="check-row"><input name="${paidField}" type="checkbox"${payload[paidField] === true ? " checked" : ""}><span>Paid</span></label>
-      ${isClinic ? "" : `<label class="check-row"><input name="${youngRiderField}" type="checkbox"${payload[youngRiderField] === true ? " checked" : ""}><span>Young rider: under 13 years old and older than 5 years old</span></label>`}
+      ${isClinic ? "" : `<label>Rider type<select name="club-day-rider-type"><option value="adult"${riderType === "adult" ? " selected" : ""}>Adult</option><option value="junior"${riderType === "junior" ? " selected" : ""}>Junior</option></select></label>`}
       <label class="check-row"><input name="${dayMembershipField}" type="checkbox"${payload[dayMembershipField] === true ? " checked" : ""}><span>Needs AEORA day membership form</span></label>
       <div class="admin-actions">
         <button class="button primary form-submit" type="submit">Save registration</button>
@@ -2139,7 +2427,7 @@ function getEventRegistrationPayableTotal(registration, event = getEventDetails(
   if (registration.form_type === "show_registration") return getShowRegistrationTotal(registration, event);
   const calculatedTotal = Number(registration.payload?.["calculated-total"]);
   if (Number.isFinite(calculatedTotal) && calculatedTotal > 0) return calculatedTotal;
-  if (registration.form_type === "club_day_registration") return getClubDayBaseFeeForPayload(registration.payload || {}, event) + (needsDayMembershipForm(registration) ? getDayMembershipFeeForPayload(registration.payload || {}) : 0);
+  if (registration.form_type === "club_day_registration") return getClubDayBaseFeeForPayload(registration.payload || {}, event) + (needsDayMembershipForm(registration) ? getDayMembershipFeeForPayload(registration.payload || {}, event) : 0);
   if (registration.form_type === "clinic_registration") return Number(event.event_settings?.clinic_fee ?? defaultClinicFee);
   return 0;
 }
@@ -2573,7 +2861,7 @@ function renderEventPage(registrations) {
           <div><dt>Horses</dt><dd>${showHorseCount}</dd></div>
         </dl>` : isMemberPage || group.event.type.startsWith("external-") ? "" : `<dl class="event-detail-stats">
           <div>
-            <dt>Coming</dt>
+            <dt>Attendees</dt>
             <dd>${summary.attendees}</dd>
           </div>
           <div>
@@ -2638,7 +2926,32 @@ document.addEventListener("click", async (event) => {
     const addHeader = (heading) => { pdf.setFillColor(...templateBrown); pdf.rect(margin, y, 182, 15, "F"); if (logoData) pdf.addImage(logoData, "PNG", margin + 3, y + 1.5, 12, 12); pdf.setTextColor(245, 239, 226); pdf.setFont("helvetica", "bold"); pdf.setFontSize(14); pdf.text("SEORC SHOW", margin + 19, y + 6.5); pdf.setFontSize(9); pdf.text(heading.toUpperCase(), margin + 19, y + 11.5); pdf.setTextColor(43, 37, 32); pdf.setFont("helvetica", "normal"); pdf.setFontSize(9); pdf.text(`${group.event.title} | ${formatDateParts(group.event.date).label} | ${group.event.location}`, margin, y + 21); y += 29; };
     addHeader("Run sheets");
     const classes = getShowClassGroupsWithResults(eventId, group.registrations, results);
+    const sortedClassNames = sortShowClassNames(Object.keys(classes));
+    const drawTimekeeperSection = () => {
+      pdf.addPage(); y = 16; addHeader("Timekeeper sheets");
+      sortedClassNames.forEach((className) => { const entries = classes[className]; for (let start = 0; start < entries.length; start += 18) { const run = entries.slice(start, start + 18); const tableHeight = 17 + run.length * 8; if (y + tableHeight > 278) { pdf.addPage(); y = 16; addHeader("Timekeeper sheets"); } pdf.setFillColor(...templateGold); pdf.rect(margin, y, 182, 8, "F"); pdf.setTextColor(43, 37, 32); pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); pdf.text(`${className}${entries.length > 18 ? ` - ${start + 1}-${Math.min(start + 18, entries.length)}` : ""}`, margin + 4, y + 5.3); y += 8; pdf.setFillColor(245, 239, 226); pdf.rect(margin, y, 182, 9, "F"); pdf.setDrawColor(...templateLine); pdf.rect(margin, y, 182, 9 + run.length * 8); [margin + 22, margin + 86, margin + 146].forEach((x) => pdf.line(x, y, x, y + 9 + run.length * 8)); pdf.setFontSize(9); pdf.text("ORDER", margin + 4, y + 5.8); pdf.text("RIDER NAME", margin + 27, y + 5.8); pdf.text("HORSE NAME", margin + 91, y + 5.8); pdf.text("TIME", margin + 151, y + 5.8); y += 9; pdf.setFont("helvetica", "normal"); run.forEach((entry, index) => { pdf.line(margin, y + 8, 196, y + 8); pdf.text(String(start + index + 1), margin + 8, y + 5.4); pdf.text(String(entry.participant).slice(0, 25), margin + 27, y + 5.4); pdf.text(String(entry.horseName).slice(0, 23), margin + 91, y + 5.4); y += 8; }); y += 8; } });
+    };
+    const drawGatekeeperSection = () => {
+      const rows = sortedClassNames.flatMap((className) => classes[className].map((entry, index) => ({ className, entry, order: index + 1 })));
+      const rowsPerColumn = 31; const rowsPerPage = rowsPerColumn * 2; const pages = Math.min(2, Math.ceil(rows.length / rowsPerPage) || 1);
+      for (let pageIndex = 0; pageIndex < pages; pageIndex += 1) {
+        pdf.addPage(); y = 16; addHeader(`Gatekeeper checklist${pages > 1 ? ` ${pageIndex + 1}` : ""}`);
+        const pageRows = rows.slice(pageIndex * rowsPerPage, pageIndex * rowsPerPage + rowsPerPage);
+        [0, 1].forEach((columnIndex) => {
+          const columnRows = pageRows.slice(columnIndex * rowsPerColumn, columnIndex * rowsPerColumn + rowsPerColumn);
+          if (!columnRows.length) return;
+          const left = margin + columnIndex * 93; const width = 88; let rowY = y;
+          pdf.setFillColor(...templateGold); pdf.rect(left, rowY, width, 8, "F"); pdf.setTextColor(43, 37, 32); pdf.setFont("helvetica", "bold"); pdf.setFontSize(7.2); pdf.text("TICK", left + 3, rowY + 5.2); pdf.text("ORDER", left + 15, rowY + 5.2); pdf.text("RIDER / HORSE", left + 31, rowY + 5.2); rowY += 8;
+          pdf.setDrawColor(...templateLine); pdf.rect(left, rowY, width, columnRows.length * 7); [left + 12, left + 28].forEach((x) => pdf.line(x, rowY, x, rowY + columnRows.length * 7));
+          pdf.setFont("helvetica", "normal"); pdf.setFontSize(6.8);
+          columnRows.forEach(({ className, entry, order }) => { pdf.line(left, rowY + 7, left + width, rowY + 7); pdf.rect(left + 3, rowY + 2, 4, 4); pdf.text(String(order), left + 16, rowY + 4.8); pdf.text(`${String(entry.participant).slice(0, 17)} / ${String(entry.horseName).slice(0, 17)}`, left + 31, rowY + 3.5); pdf.setFontSize(5.8); pdf.text(String(className).slice(0, 22), left + 31, rowY + 6.1); pdf.setFontSize(6.8); rowY += 7; });
+        });
+        if (pageIndex === 1 && rows.length > rowsPerPage * 2) { pdf.setFont("helvetica", "bold"); pdf.setFontSize(8); pdf.text(`Additional entries not shown: ${rows.length - rowsPerPage * 2}`, margin, 284); }
+      }
+    };
     sortShowClassNames(Object.keys(classes)).forEach((className) => { const entries = classes[className]; for (let start = 0; start < entries.length; start += 20) { const run = entries.slice(start, start + 20); const tableHeight = 17 + run.length * 8; if (y + tableHeight > 278) { pdf.addPage(); y = 16; addHeader("Run sheets"); } pdf.setFillColor(...templateGold); pdf.rect(margin, y, 182, 8, "F"); pdf.setTextColor(43, 37, 32); pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); pdf.text(`${className}${entries.length > 20 ? ` - ${start + 1}-${Math.min(start + 20, entries.length)}` : ""}`, margin + 4, y + 5.3); y += 8; pdf.setFillColor(245, 239, 226); pdf.rect(margin, y, 182, 9, "F"); pdf.setDrawColor(...templateLine); pdf.rect(margin, y, 182, 9 + run.length * 8); [margin + 24, margin + 105].forEach((x) => pdf.line(x, y, x, y + 9 + run.length * 8)); pdf.setFontSize(9); pdf.text("ORDER", margin + 4, y + 5.8); pdf.text("RIDER NAME", margin + 29, y + 5.8); pdf.text("HORSE NAME", margin + 110, y + 5.8); y += 9; pdf.setFont("helvetica", "normal"); run.forEach((entry, index) => { pdf.line(margin, y + 8, 196, y + 8); pdf.text(String(start + index + 1), margin + 8, y + 5.4); pdf.text(String(entry.participant).slice(0, 34), margin + 29, y + 5.4); pdf.text(String(entry.horseName).slice(0, 34), margin + 110, y + 5.4); y += 8; }); y += 8; } });
+    drawTimekeeperSection();
+    drawGatekeeperSection();
     pdf.addPage(); y = 16; addHeader("Day memberships required");
     const phone = (registration) => registration.payload?.["participant-phone"] || registration.payload?.["clinic-phone"] || "Not supplied";
     const drawListHeader = (labels, columns, offsets = []) => { pdf.setFillColor(...templateGold); pdf.rect(margin, y, 182, 9, "F"); pdf.setFont("helvetica", "bold"); pdf.setFontSize(9); labels.forEach((label, index) => pdf.text(label, columns[index] + (offsets[index] ?? 4), y + 5.8)); y += 9; };
@@ -2664,9 +2977,17 @@ async function downloadScoringCards(eventDetails, registrations) {
     const left = 14; const width = 182; let y = 12;
     pdf.setDrawColor(...line); pdf.setLineWidth(0.5); pdf.rect(left, y, width, 270);
     pdf.setFillColor(...brown); pdf.rect(left, y, width, 18, "F"); if (logoData) pdf.addImage(logoData, "PNG", left + 4, y + 2, 14, 14); pdf.setTextColor(245, 239, 226); pdf.setFont("helvetica", "bold"); pdf.setFontSize(15); pdf.text("SEORC SHOW", left + 23, y + 7.5); pdf.setFontSize(10); pdf.text("JUDGE SCORING CARD", left + 23, y + 13); pdf.setTextColor(43, 37, 32); pdf.setFont("helvetica", "normal"); pdf.setFontSize(10); pdf.text(`${eventDetails.title} | ${formatDateParts(eventDetails.date).label}`, left + 4, y + 26); pdf.setFont("helvetica", "bold"); pdf.text("JUDGE:", left + 112, y + 26); pdf.setFont("helvetica", "normal"); pdf.text(String(judgeName), left + 132, y + 26); pdf.setFont("helvetica", "bold"); pdf.text("CLASS:", left + 4, y + 34); pdf.text("ORDER:", left + 112, y + 34); pdf.text("RIDER:", left + 4, y + 42); pdf.text("HORSE:", left + 112, y + 42); pdf.setFont("helvetica", "normal"); pdf.text(String(className), left + 24, y + 34); pdf.text(String(order), left + 132, y + 34); pdf.text(String(entry.participant).slice(0, 28), left + 25, y + 42); pdf.text(String(entry.horseName).slice(0, 28), left + 132, y + 42);
-    y += 46; pdf.setFillColor(...gold); pdf.rect(left, y, width, 8, "F"); pdf.setFont("helvetica", "bold"); pdf.setFontSize(8); pdf.text("#", left + 4, y + 5.2); pdf.text("OBSTACLE", left + 18, y + 5.2); pdf.text("SCORE / 10", left + 151, y + 5.2); pdf.setFont("helvetica", "normal"); pdf.setDrawColor(...line);
-    obstacleNames.forEach((name, index) => { const rowY = y + 8 + index * 10; pdf.rect(left, rowY, width, 10); pdf.line(left + 14, rowY, left + 14, rowY + 10); pdf.line(left + 145, rowY, left + 145, rowY + 10); pdf.setFontSize(9); pdf.text(String(index + 1), left + 5, rowY + 6.5); pdf.text(String(name).slice(0, 55), left + 18, rowY + 6.5); });
+    y += 46; pdf.setFillColor(...gold); pdf.rect(left, y, width, 8, "F"); pdf.setFont("helvetica", "bold"); pdf.setFontSize(8); pdf.text("#", left + 4, y + 5.2); pdf.text("OBSTACLE", left + 18, y + 5.2); pdf.text("COMMENTS", left + 89, y + 5.2); pdf.text("SCORE / 10", left + 158, y + 5.2); pdf.setFont("helvetica", "normal"); pdf.setDrawColor(...line);
+    obstacleNames.forEach((name, index) => { const rowY = y + 8 + index * 10; pdf.rect(left, rowY, width, 10); pdf.line(left + 14, rowY, left + 14, rowY + 10); pdf.line(left + 84, rowY, left + 84, rowY + 10); pdf.line(left + 154, rowY, left + 154, rowY + 10); pdf.setFontSize(9); pdf.text(String(index + 1), left + 5, rowY + 6.5); pdf.text(String(name).slice(0, 28), left + 18, rowY + 6.5); });
     const scoreY = y + 8 + obstacleNames.length * 10 + 8; pdf.setFont("helvetica", "bold"); pdf.setFillColor(245, 239, 226); pdf.rect(left, scoreY, 86, 18, "FD"); pdf.rect(left + 96, scoreY, 86, 18, "FD"); pdf.text("TIME SCORE", left + 4, scoreY + 6); pdf.text("TOTAL", left + 100, scoreY + 6);
+    const guide = [["10", "Exceptional"], ["9", "Excellent"], ["8", "Great"], ["7", "Very good"], ["6", "Good"], ["5", "Satisfactory"], ["3-4", "Marginal"], ["1-2", "Poor"]];
+    const guideY = scoreY + 28; pdf.setFont("helvetica", "bold"); pdf.setFontSize(8); pdf.text("SCORING GUIDE", left + 4, guideY); pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.6);
+    guide.forEach(([score, label], index) => { const columnX = left + 4 + (index >= 4 ? 50 : 0); const rowY = guideY + 6 + (index % 4) * 6; pdf.text(`${score} - ${label}`, columnX, rowY); });
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(8); pdf.text("0 - Missed obstacle or did not attempt + 20 sec", left + 4, guideY + 33);
+    const acronymX = left + 124; pdf.setFont("helvetica", "bold"); pdf.setFontSize(8); pdf.text("ACRONYM LIST", acronymX, guideY); pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.4);
+    [["BG", "Broken Gate"], ["WL", "Wrong Lead"], ["GM", "Gaping Mouth"], ["H", "Hesitation"]].forEach(([code, label], index) => {
+      pdf.text(`${code} - ${label}`, acronymX, guideY + 6 + index * 6);
+    });
   };
   cards.forEach((card, index) => { if (index) pdf.addPage(); drawCard(card); });
   pdf.save(`${String(eventDetails.title).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-scoring-cards.pdf`);
@@ -3192,7 +3513,7 @@ async function requestSupabase(path, options = {}) {
   }
 
   const judgeArea = Boolean(document.querySelector("[data-judging-page], [data-results-page]"));
-  const adminArea = Boolean(document.body.matches("[data-admin-role-required]") || document.querySelector("[data-admin-panel], [data-media-upload], [data-event-admin-form]"));
+  const adminArea = Boolean(document.body.matches("[data-admin-role-required]") || document.querySelector("[data-admin-panel], [data-media-upload], [data-event-admin-form], [data-shop-item-form]"));
   const accessToken = judgeArea ? await getFreshJudgeAccessToken() : adminArea ? await getFreshAdminAccessToken() : null;
   const headers = {
     apikey: supabaseConfig.anonKey,
@@ -3679,6 +4000,237 @@ document.addEventListener("click", async (event) => {
   finally { button.disabled = false; }
 });
 
+document.addEventListener("submit", async (event) => {
+  const form = event.target.closest("[data-shop-item-form]");
+  if (!form) return;
+
+  event.preventDefault();
+  const status = form.querySelector("[data-shop-item-status]");
+  const formData = new FormData(form);
+  const itemId = String(formData.get("id") || "");
+  const existingItem = (window.shopItems || []).find((shopItem) => shopItem.id === itemId);
+  const imageFile = form.querySelector("[name='image_file']")?.files?.[0];
+  const body = {
+    name: String(formData.get("name") || "").trim(),
+    description: String(formData.get("description") || "").trim(),
+    price: Number(formData.get("price") || 0),
+    image_url: String(formData.get("image_url") || "").trim() || null,
+    order_url: existingItem?.order_url || null,
+    stock_status: String(formData.get("stock_status") || "available"),
+    published: existingItem ? existingItem.published !== false : true,
+    sort_order: Number(formData.get("sort_order") || 0),
+    updated_at: new Date().toISOString(),
+  };
+
+  if (status) status.textContent = itemId ? "Saving shop item..." : "Adding shop item...";
+
+  try {
+    if (imageFile) {
+      if (status) status.textContent = "Uploading product image...";
+      body.image_url = await uploadShopItemImage(imageFile);
+    }
+
+    if (itemId) {
+      await requestSupabase(`/rest/v1/shop_items?id=eq.${encodeURIComponent(itemId)}`, {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify(body),
+      });
+    } else {
+      await requestSupabase("/rest/v1/shop_items", {
+        method: "POST",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify(body),
+      });
+    }
+
+    resetShopItemForm();
+    await loadShopAdmin();
+  } catch (error) {
+    if (status) status.textContent = `Could not save shop item: ${error.message}`;
+  }
+});
+
+document.addEventListener("click", (event) => {
+  const addButton = event.target.closest("[data-add-shop-item]");
+  if (!addButton) return;
+  openShopItemModal();
+});
+
+document.addEventListener("click", (event) => {
+  const orderButton = event.target.closest("[data-order-shop-item]");
+  if (!orderButton) return;
+  const item = (window.shopItems || []).find((shopItem) => shopItem.id === orderButton.dataset.orderShopItem);
+  if (item) openModal(renderShopOrderModal(item));
+});
+
+document.addEventListener("click", (event) => {
+  const editButton = event.target.closest("[data-edit-shop-item]");
+  if (!editButton) return;
+  const item = (window.shopItems || []).find((shopItem) => shopItem.id === editButton.dataset.editShopItem);
+  if (item) openShopItemModal(item);
+});
+
+document.addEventListener("change", (event) => {
+  const imageInput = event.target.closest("[data-shop-item-form] [name='image_file']");
+  if (!imageInput) return;
+  const preview = imageInput.closest("form")?.querySelector("[data-shop-image-preview]");
+  const image = preview?.querySelector("img");
+  const file = imageInput.files?.[0];
+  if (!preview || !image || !file) return;
+  image.src = URL.createObjectURL(file);
+  preview.hidden = false;
+});
+
+document.addEventListener("change", (event) => {
+  const mediaInput = event.target.closest("[data-email-attendees-form] [name='media_file']");
+  if (!mediaInput) return;
+  const preview = mediaInput.closest("form")?.querySelector("[data-email-media-preview]");
+  const image = preview?.querySelector("img");
+  const file = mediaInput.files?.[0];
+  if (!preview || !image) return;
+  if (!file || !file.type.startsWith("image/")) {
+    preview.hidden = true;
+    image.removeAttribute("src");
+    return;
+  }
+  image.src = URL.createObjectURL(file);
+  preview.hidden = false;
+});
+
+document.addEventListener("input", (event) => {
+  const quantityInput = event.target.closest("[data-shop-order-quantity]");
+  if (!quantityInput) return;
+  const modal = quantityInput.closest("[data-shop-order-modal]");
+  const item = (window.shopItems || []).find((shopItem) => shopItem.id === modal?.dataset.itemId);
+  if (!item) return;
+  const quantity = Math.max(1, Number(quantityInput.value || 1));
+  const total = Number(item.price || 0) * quantity;
+  modal.querySelector("[data-shop-order-total]").textContent = formatCurrency(total);
+  const totalInput = modal.querySelector("[data-shop-order-total-input]");
+  if (totalInput) totalInput.value = formatCurrency(total);
+});
+
+document.addEventListener("submit", async (event) => {
+  const form = event.target.closest("[data-shop-order-modal]");
+  if (!form) return;
+
+  event.preventDefault();
+  const config = getSupabaseConfig();
+  const item = (window.shopItems || []).find((shopItem) => shopItem.id === form.dataset.itemId);
+  const status = form.querySelector("[data-shop-order-status]");
+  const submitButton = form.querySelector("[type='submit']");
+
+  if (!config || !item) {
+    if (status) status.textContent = "Could not send this order. Please try again later.";
+    return;
+  }
+
+  const formData = new FormData(form);
+  const quantity = Math.max(1, Number(formData.get("quantity") || 1));
+  const total = Number(item.price || 0) * quantity;
+
+  if (status) status.textContent = "Sending order...";
+  if (submitButton) submitButton.disabled = true;
+
+  try {
+    const response = await fetch(`${config.url}/functions/v1/shop-order`, {
+      method: "POST",
+      headers: { apikey: config.anonKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        itemId: item.id,
+        itemName: item.name,
+        itemPrice: Number(item.price || 0),
+        quantity,
+        total,
+        customerName: String(formData.get("customer_name") || "").trim(),
+        customerEmail: String(formData.get("customer_email") || "").trim(),
+        address: String(formData.get("address") || "").trim(),
+        comments: String(formData.get("comments") || "").trim(),
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Order email failed");
+    const reference = result.reference || "the shop reference";
+    const referenceDisplay = form.querySelector("[data-shop-order-reference]");
+    if (referenceDisplay) referenceDisplay.textContent = reference;
+    if (status) status.textContent = `Order sent. Please pay by bank transfer using reference ${reference}.`;
+    form.reset();
+    form.querySelector("[name='quantity']").value = "1";
+    form.querySelector("[data-shop-order-total]").textContent = formatCurrency(Number(item.price || 0));
+    const totalInput = form.querySelector("[data-shop-order-total-input]");
+    if (totalInput) totalInput.value = formatCurrency(Number(item.price || 0));
+  } catch (error) {
+    if (status) status.textContent = `Could not send order: ${error.message}`;
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+  }
+});
+
+document.addEventListener("change", async (event) => {
+  const checkbox = event.target.closest("[data-toggle-shop-published]");
+  if (!checkbox) return;
+  try {
+    await requestSupabase(`/rest/v1/shop_items?id=eq.${encodeURIComponent(checkbox.dataset.toggleShopPublished)}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ published: checkbox.checked, updated_at: new Date().toISOString() }),
+    });
+    await loadShopAdmin();
+  } catch (error) {
+    checkbox.checked = !checkbox.checked;
+    alert(`Could not update shop visibility: ${error.message}`);
+  }
+});
+
+document.addEventListener("click", async (event) => {
+  const deleteButton = event.target.closest("[data-delete-shop-item]");
+  if (!deleteButton || !window.confirm("Delete this shop item?")) return;
+
+  try {
+    await requestSupabase(`/rest/v1/shop_items?id=eq.${encodeURIComponent(deleteButton.dataset.deleteShopItem)}`, {
+      method: "DELETE",
+      headers: { Prefer: "return=minimal" },
+    });
+    resetShopItemForm();
+    await loadShopAdmin();
+  } catch (error) {
+    alert(`Could not delete shop item: ${error.message}`);
+  }
+});
+
+document.addEventListener("change", async (event) => {
+  const checkbox = event.target.closest("[data-toggle-shop-order-sent]");
+  if (!checkbox) return;
+
+  const sentOut = checkbox.checked;
+  try {
+    const config = getSupabaseConfig();
+    const token = await getFreshAdminAccessToken();
+    if (!config || !token) throw new Error("Admin sign-in is required.");
+    const response = await fetch(`${config.url}/functions/v1/shop-orders-admin`, {
+      method: "POST",
+      headers: { apikey: config.anonKey, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ id: checkbox.dataset.toggleShopOrderSent, sentOut }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Could not update order status.");
+    const label = checkbox.closest("label")?.querySelector("span");
+    if (label) label.textContent = sentOut ? "Sent" : "Waiting";
+    const filter = document.querySelector("[data-shop-order-filter]")?.value || document.querySelector("[data-shop-order-list]")?.dataset.shopOrderList || "all";
+    if ((filter === "waiting" && sentOut) || (filter === "fulfilled" && !sentOut)) await loadShopOrders(filter);
+  } catch (error) {
+    checkbox.checked = !sentOut;
+    alert(`Could not update order status: ${error.message}`);
+  }
+});
+
+document.addEventListener("change", (event) => {
+  const select = event.target.closest("[data-shop-order-filter]");
+  if (!select) return;
+  loadShopOrders(select.value);
+});
+
 if (judgeAssignmentForm) {
   judgeAssignmentForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -3732,7 +4284,7 @@ if (adminForm) {
       title: formData.get("title").trim(),
       location: formData.get("location").trim(),
       description: formData.get("description").trim(),
-      event_settings: String(formData.get("type")).startsWith("external-") ? { provider_url: String(formData.get("provider_url") || "").trim(), external_cost: String(formData.get("external_cost") || "").trim() } : String(formData.get("type")) === "club" ? { club_day_fee: clubDayFee, club_day_young_rider_fee: youngRiderClubDayFee } : String(formData.get("type")) === "clinic" ? { clinic_fee: defaultClinicFee } : {},
+      event_settings: String(formData.get("type")).startsWith("external-") ? { provider_url: String(formData.get("provider_url") || "").trim(), external_cost: String(formData.get("external_cost") || "").trim() } : String(formData.get("type")) === "club" ? { club_day_fee: clubDayFee, club_day_junior_fee: juniorClubDayFee } : String(formData.get("type")) === "clinic" ? { clinic_fee: defaultClinicFee } : {},
     };
 
     try {
@@ -4050,12 +4602,20 @@ document.addEventListener("submit", async (event) => {
   const formData = new FormData(emailForm);
   const config = getSupabaseConfig();
   const token = await getFreshAdminAccessToken();
+  const mediaFile = emailForm.querySelector("[name='media_file']")?.files?.[0];
 
   if (!config || !token) return;
   if (status) status.textContent = "Sending attendee email...";
   if (submitButton) submitButton.disabled = true;
 
   try {
+    let mediaUrl = "";
+    if (mediaFile) {
+      if (status) status.textContent = "Uploading media...";
+      mediaUrl = await uploadAdminMediaFile(mediaFile, "attendee-email");
+      if (status) status.textContent = "Sending attendee email...";
+    }
+
     const response = await fetch(`${config.url}/functions/v1/email-attendees`, {
       method: "POST",
       headers: { apikey: config.anonKey, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -4063,6 +4623,9 @@ document.addEventListener("submit", async (event) => {
         eventId: emailForm.dataset.eventId,
         subject: String(formData.get("subject") || ""),
         message: String(formData.get("message") || ""),
+        mediaUrl,
+        mediaName: mediaFile?.name || "",
+        mediaType: mediaFile?.type || "",
       }),
     });
     const result = await response.json().catch(() => ({}));
@@ -4312,7 +4875,7 @@ document.addEventListener("submit", async (event) => {
     const eventId = pricingForm.dataset.eventId;
     const currentEvent = getEventDetails(eventId);
     const classPrices = Object.fromEntries(showClassSlugs.map((slug) => [slug, Number(formData.get(`class_${slug}`) || 0)]));
-    const settings = currentEvent.type === "club" ? { club_day_fee: Number(formData.get("club_day_fee") || 0), club_day_young_rider_fee: Number(formData.get("club_day_young_rider_fee") || 0) } : currentEvent.type === "clinic" ? { ...(currentEvent.event_settings || {}), clinic_fee: Number(formData.get("clinic_fee") || 0) } : { dinner_price: Number(formData.get("dinner_price") || 0), powered_camping_price: Number(formData.get("powered_camping_price") || 0), unpowered_camping_price: Number(formData.get("unpowered_camping_price") || 0), yard_price: Number(formData.get("yard_price") || 0), dinner_vendor_url: String(formData.get("dinner_vendor_url") || "").trim(), custom_information: String(formData.get("custom_information") || "").trim(), class_prices: classPrices };
+    const settings = currentEvent.type === "club" ? { club_day_fee: Number(formData.get("club_day_fee") || 0), club_day_junior_fee: Number(formData.get("club_day_junior_fee") || 0) } : currentEvent.type === "clinic" ? { ...(currentEvent.event_settings || {}), clinic_fee: Number(formData.get("clinic_fee") || 0) } : { dinner_price: Number(formData.get("dinner_price") || 0), powered_camping_price: Number(formData.get("powered_camping_price") || 0), unpowered_camping_price: Number(formData.get("unpowered_camping_price") || 0), yard_price: Number(formData.get("yard_price") || 0), dinner_vendor_url: String(formData.get("dinner_vendor_url") || "").trim(), custom_information: String(formData.get("custom_information") || "").trim(), class_prices: classPrices };
     const status = pricingForm.querySelector("[data-event-pricing-status]");
     try {
       await updateEventSettings(eventId, settings);
@@ -4366,7 +4929,6 @@ document.addEventListener("submit", async (event) => {
     const horseField = isClinic ? "clinic-horse-name" : "club-day-horse-name";
     const paidField = isClinic ? "clinic-paid" : "club-day-paid";
     const dayMembershipField = isClinic ? "clinic-day-membership" : "club-day-day-membership";
-    const youngRiderField = "club-day-young-rider";
     const eventDetails = getEventDetails(eventRegistrationForm.dataset.eventId);
 
     [`${prefix}-first-name`, `${prefix}-last-name`, `${prefix}-email`, `${prefix}-phone`, horseField].forEach((field) => {
@@ -4374,12 +4936,15 @@ document.addEventListener("submit", async (event) => {
     });
     payload[paidField] = formData.has(paidField);
     payload[dayMembershipField] = formData.has(dayMembershipField);
-    if (!isClinic) payload[youngRiderField] = formData.has(youngRiderField);
+    if (!isClinic) {
+      payload["club-day-rider-type"] = String(formData.get("club-day-rider-type") || "adult");
+      delete payload["club-day-young-rider"];
+    }
 
     if (isClinic) {
       payload["calculated-total"] = Number(eventDetails.event_settings?.clinic_fee ?? defaultClinicFee);
     } else {
-      payload["calculated-total"] = getClubDayBaseFeeForPayload(payload, eventDetails) + (payload[dayMembershipField] === true ? getDayMembershipFeeForPayload(payload) : 0);
+      payload["calculated-total"] = getClubDayBaseFeeForPayload(payload, eventDetails) + (payload[dayMembershipField] === true ? getDayMembershipFeeForPayload(payload, eventDetails) : 0);
     }
 
     const status = eventRegistrationForm.querySelector("[data-event-registration-edit-status]");
@@ -4682,7 +5247,7 @@ document.addEventListener("click", async (event) => {
   } catch (error) { alert(`Could not delete event: ${error.message}`); }
 });
 
-const staticForms = document.querySelectorAll("form:not([data-admin-login]):not([data-event-admin-form]):not([data-club-settings-form]):not([data-obstacle-setup-form]):not([data-member-detail-form])");
+const staticForms = document.querySelectorAll("form:not([data-admin-login]):not([data-event-admin-form]):not([data-club-settings-form]):not([data-obstacle-setup-form]):not([data-member-detail-form]):not([data-shop-item-form])");
 
 function getFormType() {
   const pageName = window.location.pathname.split("/").pop() || "index.html";
@@ -4721,10 +5286,10 @@ function getFormPayload(form) {
     payload["aeora-day-membership"] = payload["aeora-membership"] === "day";
   }
   if (form.matches(".registration-form") && document.querySelector("[name='club-date']")) {
-    const selectedClubDayFee = payload["club-day-young-rider"] === true
-      ? Number(form.dataset.youngRiderFee || youngRiderClubDayFee)
-      : Number(form.dataset.eventFee || clubDayFee);
-    const selectedDayMembershipFee = payload["club-day-young-rider"] === true
+    const event = getEvents().find((item) => item.id === payload["club-date"]);
+    const isJuniorDayMember = isJuniorDayMembershipPayload(payload, event);
+    const selectedClubDayFee = getClubDayBaseFeeForPayload(payload, event);
+    const selectedDayMembershipFee = isJuniorDayMember
       ? Number(form.dataset.youngRiderDayMembershipFee || youngRiderDayMembershipFee)
       : Number(form.dataset.dayMembershipFee || dayMembershipFee);
     payload["calculated-total"] = selectedClubDayFee + (payload["club-day-day-membership"] === true ? selectedDayMembershipFee : 0);
@@ -4882,6 +5447,9 @@ function loadMembershipConfirmationPage() {
 }
 
 loadMembershipConfirmationPage();
+loadShopFront();
+loadShopAdmin();
+loadShopOrders();
 
 staticForms.forEach((form) => {
   form.dataset.supabaseReady = window.SEORC_SUPABASE ? "true" : "false";

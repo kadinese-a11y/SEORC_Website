@@ -439,3 +439,15 @@ entrypoint = "./functions/archive-event/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/registration-confirmation/index.ts"
+
+[functions.shop-order]
+enabled = true
+verify_jwt = false
+import_map = "./functions/shop-order/deno.json"
+entrypoint = "./functions/shop-order/index.ts"
+
+[functions.shop-orders-admin]
+enabled = true
+verify_jwt = true
+import_map = "./functions/shop-orders-admin/deno.json"
+entrypoint = "./functions/shop-orders-admin/index.ts"
